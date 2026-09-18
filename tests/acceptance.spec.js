@@ -3,7 +3,7 @@
 // serially in a single worker and each test clears the database first.
 const fs = require('fs');
 const { test, expect } = require('@playwright/test');
-const { clearMap } = require('./db.js');
+const { clearMap, readDatabaseUrl } = require('./db.js');
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -207,7 +207,7 @@ test.describe('nesta competency map acceptance', () => {
     const pageB = await ctxB.newPage();
 
     await openAs(pageA, 'Tim');
-    await openAs(pageB, 'Agnes');
+    await openAs(pageB, 'Agnese');
 
     await expect(pageA.locator('#revealCtl')).toBeVisible();
     await expect(pageB.locator('#revealCtl')).toBeHidden();
@@ -230,7 +230,7 @@ test.describe('nesta competency map acceptance', () => {
     const pageB = await ctxB.newPage();
 
     await openAs(pageA, 'Tim');
-    await openAs(pageB, 'Agnes');
+    await openAs(pageB, 'Agnese');
 
     await pageA.locator('#revealBtn').click();
     await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
@@ -356,6 +356,83 @@ test.describe('nesta competency map acceptance', () => {
     }
 
     await page.screenshot({ path: 'test-results/criterion-8-380px.png', fullPage: true });
+
+    await ctx.close();
+  });
+
+  test('criterion 11: reset saves an Excel file and clears everyone\'s marks', async ({ browser }) => {
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    const pageB = await ctxB.newPage();
+
+    await openAs(pageA, 'Tim');
+    await openAs(pageB, 'Connie');
+
+    await applyMarks(pageA, TIM_SET);
+    await waitSaved(pageA);
+    await applyMarks(pageB, CONNIE_SET);
+    await waitSaved(pageB);
+
+    await pageA.locator('#revealBtn').click();
+    await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await expect(pageA.locator('#resetBtn')).toBeVisible();
+    await expect(pageB.locator('#revealCtl')).toBeHidden();
+
+    pageA.once('dialog', d => d.accept());
+    const [download] = await Promise.all([
+      pageA.waitForEvent('download'),
+      pageA.click('#resetBtn'),
+    ]);
+    expect(download.suggestedFilename()).toBe('competency-map.xlsx');
+    const filePath = await download.path();
+    const fileBuffer = fs.readFileSync(filePath);
+    expect(fileBuffer.slice(0, 4).toString('binary')).toBe('PK\x03\x04');
+    const fileText = fileBuffer.toString('binary');
+    expect(fileText).toContain('xl/worksheets/sheet1.xml');
+    expect(fileText).toContain('Competency');
+    expect(fileText).toContain('Connie');
+
+    await expect(async () => {
+      const text = await pageB.locator('#mapCount').textContent();
+      expect(text.startsWith('0 of 8')).toBe(true);
+      await expect(pageB.locator('#cSkills b')).toHaveText('0');
+      await expect(pageA.locator('#mapBody')).toBeHidden();
+      await expect(pageB.locator('#mapBody')).toBeHidden();
+      const databaseUrl = readDatabaseUrl();
+      const res = await fetch(databaseUrl + '/map.json');
+      const value = await res.json();
+      expect(value).toBeNull();
+    }).toPass({ timeout: 3000 });
+
+    await ctxA.close();
+    await ctxB.close();
+  });
+
+  test('criterion 12: download as Excel produces a valid workbook', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+
+    await openAs(page, 'Tim');
+    await applyMarks(page, TIM_SET);
+    await waitSaved(page);
+
+    await page.locator('#revealBtn').click();
+    await expect(page.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#xlsBtn'),
+    ]);
+    expect(download.suggestedFilename()).toBe('competency-map.xlsx');
+    const filePath = await download.path();
+    const fileBuffer = fs.readFileSync(filePath);
+    expect(fileBuffer.slice(0, 4).toString('binary')).toBe('PK\x03\x04');
+    const fileText = fileBuffer.toString('binary');
+    expect(fileText).toContain('xl/worksheets/sheet1.xml');
+    expect(fileText).toContain('Competency');
+    expect(fileText).toContain('Connie');
 
     await ctx.close();
   });

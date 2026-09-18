@@ -8,7 +8,7 @@ The page is already written. The job is to wire it up, prove it works with two b
 
 ## The session it serves
 
-Eight people: Tim (facilitator), Connie (director), Jenny, Alex, Agnes, Stas, Lavanya, Jen. All senior experts in the IB's Education Innovation department. Hybrid: some in The Hague, some in the US.
+Eight people: Tim (facilitator), Connie (director), Jenny, Alex, Agnese, Stas, Lavanya, Jenn. All senior experts in the IB's Education Innovation department. Hybrid: some in The Hague, some in the US.
 
 Run of the session:
 1. 0–5 min: purpose and rules (not scored; nobody has all of these; teams not heroes)
@@ -24,6 +24,8 @@ Run of the session:
 - The team map is hidden until the facilitator reveals it. The reveal control is shown to whoever has picked "Tim".
 - Three shared observation fields, editable by anyone.
 - Copy and download a plain-text summary.
+- Download the map as an Excel workbook (built in plain JavaScript, no library).
+- A reset control, shown only to whoever picked Tim, that downloads the Excel copy first, then clears everyone's marks, the revealed flag and the observations after a confirmation.
 
 ## Data model (Firebase Realtime Database, test mode)
 
@@ -55,6 +57,8 @@ Person ids: tim, connie, jenny, alex, agnes, stas, lavanya, jen.
 8. Layout works at 380px wide (the marks buttons wrap; the map scrolls sideways inside its container, the page does not).
 9. Deployed on GitHub Pages and reachable at the public URL.
 10. README explains setup in the words of SETUP.md, plus how to clear the database between runs.
+11. Reset, available only to Tim, asks for confirmation, downloads the Excel file, and empties `map/` so every open browser shows a blank map within 3 seconds.
+12. "Download as Excel" produces a valid .xlsx containing every row and the three observations.
 
 ## Out of scope
 
