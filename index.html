@@ -212,6 +212,7 @@
     <div id="revealCtl" class="hidden">
       <button id="revealBtn"></button>
       <span class="soft small" id="revealHint"></span>
+      <button id="resetBtn">Reset for a new session</button>
     </div>
     <div id="mapHidden" class="notice">The map is hidden until the facilitator reveals it, so everyone maps without seeing each other's columns first.</div>
     <div id="mapBody" class="hidden">
@@ -239,6 +240,7 @@
       <div class="actions">
         <button id="copyBtn">Copy summary</button>
         <button id="dlBtn">Download summary</button>
+        <button id="xlsBtn">Download as Excel</button>
         <span class="status" id="copyStatus"></span>
       </div>
       <pre class="summary hidden" id="summaryPre"></pre>
@@ -253,10 +255,10 @@
     { id: "connie", name: "Connie" },
     { id: "jenny", name: "Jenny" },
     { id: "alex", name: "Alex" },
-    { id: "agnes", name: "Agnes" },
+    { id: "agnes", name: "Agnese" },
     { id: "stas", name: "Stas" },
     { id: "lavanya", name: "Lavanya" },
-    { id: "jen", name: "Jen" },
+    { id: "jen", name: "Jenn" },
   ];
 
   const AREAS = [
@@ -575,6 +577,149 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
 
+  // ---------- excel export (no library: hand-built .xlsx zip) ----------
+  const CRC_TABLE = (function () {
+    const table = [];
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  function crc32(bytes) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ bytes[i]) & 0xFF];
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  function u16(n) { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; }
+  function u32(n) { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; }
+  function bytesConcat(arrays) {
+    let len = 0; arrays.forEach(a => len += a.length);
+    const out = new Uint8Array(len);
+    let off = 0; arrays.forEach(a => { out.set(a, off); off += a.length; });
+    return out;
+  }
+  function xmlEscape(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  }
+  function colName(n) {
+    let s = "";
+    while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+  function makeZip(files) {
+    const DOSTIME = u16(0), DOSDATE = u16(0x21);
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+    files.forEach(f => {
+      const nameBytes = new TextEncoder().encode(f.name);
+      const data = f.data;
+      const crc = crc32(data);
+      const size = data.length;
+      const localHeader = bytesConcat([
+        u32(0x04034b50), u16(20), u16(0), u16(0), DOSTIME, DOSDATE,
+        u32(crc), u32(size), u32(size), u16(nameBytes.length), u16(0), nameBytes
+      ]);
+      localParts.push(localHeader, data);
+      const centralHeader = bytesConcat([
+        u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), DOSTIME, DOSDATE,
+        u32(crc), u32(size), u32(size), u16(nameBytes.length), u16(0), u16(0),
+        u16(0), u16(0), u32(0), u32(offset), nameBytes
+      ]);
+      centralParts.push(centralHeader);
+      offset += localHeader.length + data.length;
+    });
+    const centralDir = bytesConcat(centralParts);
+    const eocd = bytesConcat([
+      u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length),
+      u32(centralDir.length), u32(offset), u16(0)
+    ]);
+    return bytesConcat(localParts.concat([centralDir, eocd]));
+  }
+  function excelBlob() {
+    const header = ["Competency", "Area"].concat(PEOPLE.map(p => p.name)).concat(["Holders"]);
+    const rows = [header];
+    AREAS.forEach(area => {
+      area.items.forEach(item => {
+        const row = [item.name, area.name];
+        let holders = 0;
+        PEOPLE.forEach(p => {
+          const d = all[p.id];
+          let val = "";
+          if (d) {
+            const isStrength = area.kind === "skill" ? d.skills.includes(item.id) : d.attitudes.includes(item.id);
+            if (isStrength) { holders++; val = d.star === item.id ? "Superpower" : "Strength"; }
+            else if (area.kind === "skill" && d.develop.includes(item.id)) { val = "Develop"; }
+          }
+          row.push(val);
+        });
+        row.push(holders);
+        rows.push(row);
+      });
+    });
+    rows.push([]);
+    rows.push(["Generated", new Date().toLocaleString()]);
+    rows.push([]);
+    rows.push(["Three things the team wants to act on"]);
+    ["obs1", "obs2", "obs3"].forEach((k, i) => rows.push([String(i + 1), notes[k] || ""]));
+
+    const sheetRowsXml = rows.map((row, ri) => {
+      const rowIndex = ri + 1;
+      const cellsXml = row.map((val, ci) => {
+        const ref = colName(ci + 1) + rowIndex;
+        if (typeof val === "number") return '<c r="' + ref + '"><v>' + val + '</v></c>';
+        return '<c r="' + ref + '" t="inlineStr"><is><t>' + xmlEscape(val) + '</t></is></c>';
+      }).join("");
+      return '<row r="' + rowIndex + '">' + cellsXml + '</row>';
+    }).join("");
+
+    const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+      sheetRowsXml + '</sheetData></worksheet>';
+
+    const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '</Types>';
+    const rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>';
+    const workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="Map" sheetId="1" r:id="rId1"/></sheets></workbook>';
+    const workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+      '</Relationships>';
+
+    const enc = new TextEncoder();
+    const files = [
+      { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
+      { name: "_rels/.rels", data: enc.encode(rootRels) },
+      { name: "xl/workbook.xml", data: enc.encode(workbookXml) },
+      { name: "xl/_rels/workbook.xml.rels", data: enc.encode(workbookRels) },
+      { name: "xl/worksheets/sheet1.xml", data: enc.encode(sheetXml) },
+    ];
+    const zipBytes = makeZip(files);
+    return new Blob([zipBytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
+  function downloadExcel() {
+    const blob = excelBlob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "competency-map.xlsx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $("xlsBtn").addEventListener("click", downloadExcel);
+
   // ---------- observations ----------
   ["obs1", "obs2", "obs3"].forEach(k => {
     const ta = $(k);
@@ -596,6 +741,17 @@
     if (!db) return;
     const next = !config.revealed;
     db.ref("map/config").set({ revealed: next, updatedAt: new Date().toISOString() }).catch(() => {});
+  });
+  $("resetBtn").addEventListener("click", () => {
+    if (!db) return;
+    const ok = window.confirm("This clears everyone's marks, the revealed map and the three observations, for all eight people. An Excel copy of the current map will download first. Reset now?");
+    if (!ok) return;
+    downloadExcel();
+    db.ref("map").remove().then(() => {
+      $("revealHint").textContent = "Reset done. Everyone's column is empty again.";
+    }).catch(() => {
+      $("revealHint").textContent = "Couldn't reset just now. Try again.";
+    });
   });
 
   // ---------- boot ----------
@@ -623,6 +779,7 @@
       if (me) {
         if (dirty) { all[me] = { ...mine }; }
         else if (all[me]) { mine = { ...all[me] }; renderMine(); }
+        else { mine = blank(); renderMine(); }
       }
       renderMap();
     }, () => { $("dbNotice").textContent = "Live updates stopped. Reload the page to reconnect."; $("dbNotice").classList.remove("hidden"); });
