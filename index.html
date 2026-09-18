@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Innovation competencies map</title>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+  // Paste your Firebase web app config here (Project settings > Your apps > SDK setup and configuration).
+  // Keep databaseURL: the page needs it for the Realtime Database.
+  const FIREBASE_CONFIG = {
+    apiKey: "PASTE_ME",
+    authDomain: "PASTE_ME.firebaseapp.com",
+    databaseURL: "https://PASTE_ME-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "PASTE_ME",
+    appId: "PASTE_ME"
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f6f2;
+    --panel: #ffffff;
+    --ink: #1c2026;
+    --ink-soft: #565d68;
+    --line: #d9dcd4;
+    --line-strong: #b8bcb3;
+    --together: #2a7f7a;
+    --learning: #b8791f;
+    --leading: #6f4a8e;
+    --attitude: #3c5f8a;
+    --develop: #8a8f96;
+    --hint-bg: #eef0ea;
+    --focus: #1c2026;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16181b;
+      --panel: #1f2226;
+      --ink: #e9eae5;
+      --ink-soft: #a5aab2;
+      --line: #33373d;
+      --line-strong: #4a4f57;
+      --together: #5fb8b2;
+      --learning: #d9a24a;
+      --leading: #a98ac4;
+      --attitude: #7fa3d0;
+      --develop: #8a8f96;
+      --hint-bg: #262a2f;
+      --focus: #e9eae5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16181b;
+    --panel: #1f2226;
+    --ink: #e9eae5;
+    --ink-soft: #a5aab2;
+    --line: #33373d;
+    --line-strong: #4a4f57;
+    --together: #5fb8b2;
+    --learning: #d9a24a;
+    --leading: #a98ac4;
+    --attitude: #7fa3d0;
+    --develop: #8a8f96;
+    --hint-bg: #262a2f;
+    --focus: #e9eae5;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Sans 3", "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 2rem; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.35rem; font-weight: 700; margin: 0 0 6px; }
+  h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 4px; }
+  p { margin: 0 0 10px; }
+  .soft { color: var(--ink-soft); }
+  .small { font-size: 0.92rem; }
+  section { margin-top: 44px; }
+  button {
+    font: inherit;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button[disabled] { opacity: 0.45; cursor: not-allowed; }
+  .notice {
+    background: var(--hint-bg);
+    border-left: 3px solid var(--line-strong);
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin: 14px 0;
+  }
+  .hidden { display: none !important; }
+
+  /* name picker */
+  .names { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .names button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* counters */
+  .counters { display: flex; flex-wrap: wrap; gap: 18px 28px; margin: 14px 0 8px; }
+  .counter { display: flex; align-items: baseline; gap: 8px; }
+  .counter b { font-size: 1.4rem; font-weight: 700; }
+  .counter.full b { color: var(--together); }
+
+  /* rows */
+  .area { margin-top: 22px; border-top: 2px solid var(--area, var(--line)); padding-top: 10px; }
+  .area h3 { color: var(--area, var(--ink)); }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 20px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .label { font-weight: 600; }
+  .row .def { color: var(--ink-soft); font-size: 0.95rem; }
+  .row .def .gloss { font-style: italic; }
+  .marks { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .marks button { padding: 5px 10px; font-size: 0.92rem; display: inline-flex; align-items: center; gap: 6px; }
+  .marks button.on { border-color: var(--area, var(--ink)); background: var(--area, var(--ink)); color: #fff; }
+  .marks button.on.dev { background: transparent; color: var(--ink); border: 2px dashed var(--ink-soft); }
+  .glyph { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; }
+  .glyph.fill { background: currentColor; }
+  .glyph.star { border: 0; border-radius: 0; width: 14px; height: 14px; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); background: currentColor; }
+  @media (max-width: 640px) {
+    .row { grid-template-columns: 1fr; }
+    .marks { justify-content: flex-start; }
+  }
+
+  /* map */
+  .mapwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin-top: 14px; }
+  table.map { border-collapse: collapse; min-width: 720px; width: 100%; }
+  table.map th, table.map td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  table.map th { font-weight: 600; }
+  table.map th.person { font-weight: 700; }
+  table.map th.person.unmapped { color: var(--ink-soft); font-weight: 400; }
+  table.map td.name, table.map th.name { text-align: left; white-space: normal; min-width: 210px; }
+  table.map tr.area-head td { text-align: left; font-weight: 700; color: var(--area); padding-top: 14px; border-bottom: 2px solid var(--area); background: var(--paper); }
+  table.map td.total { color: var(--ink-soft); }
+  table.map tr.flag-single td.name::after { content: " (one holder)"; color: var(--ink-soft); font-size: 0.85rem; }
+  table.map tr.flag-empty td.name::after { content: " (nobody)"; color: var(--ink-soft); font-size: 0.85rem; }
+  .cell { display: inline-flex; gap: 3px; align-items: center; justify-content: center; }
+  .cell .glyph { width: 13px; height: 13px; }
+  .cell .glyph.hollow { border-style: dashed; border-color: var(--develop); }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 10px 0 0; font-size: 0.92rem; color: var(--ink-soft); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* readings */
+  .readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+  .reading { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .reading ul { margin: 6px 0 0; padding-left: 18px; }
+  .reading li { margin: 2px 0; }
+  .reading .none { color: var(--ink-soft); }
+
+  /* observations */
+  .obs { display: grid; gap: 10px; margin-top: 12px; }
+  .obs textarea {
+    width: 100%; min-height: 64px; resize: vertical;
+    font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px;
+  }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  pre.summary { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 0.9rem; max-width: 100%; overflow-x: auto; }
+  .status { color: var(--ink-soft); font-size: 0.9rem; min-height: 1.3em; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Innovation competencies map</h1>
+    <p class="soft">Education Innovation team, using Nesta's competency framework for experimenting and public problem solving. This is a map for discussion, not an assessment. Nobody has all of these; the question is what the team holds between us.</p>
+    <div id="dbNotice" class="notice hidden">Live sharing isn't connected. You can still fill in your column, but others won't see it.</div>
+  </header>
+
+  <section id="who">
+    <h2>Who are you?</h2>
+    <p class="soft small">Pick your name. You'll fill in your own column; everyone else's appears in the map below.</p>
+    <div class="names" id="names"></div>
+  </section>
+
+  <section id="mine" class="hidden">
+    <h2>Your marks</h2>
+    <p class="soft small">Choose five skills and three attitudes you'd call strengths (ask yourself what your closest colleagues would say). Then mark one skill as your superpower and two skills you want to develop. The page saves as you go.</p>
+    <div class="counters">
+      <div class="counter" id="cSkills"><b>0</b><span>of 5 skills</span></div>
+      <div class="counter" id="cAtt"><b>0</b><span>of 3 attitudes</span></div>
+      <div class="counter" id="cStar"><b>0</b><span>of 1 superpower</span></div>
+      <div class="counter" id="cDev"><b>0</b><span>of 2 to develop</span></div>
+    </div>
+    <div class="status" id="saveStatus"></div>
+    <div id="rows"></div>
+  </section>
+
+  <section id="mapSection">
+    <h2>Team map</h2>
+    <p class="soft small" id="mapCount"></p>
+    <div id="revealCtl" class="hidden">
+      <button id="revealBtn"></button>
+      <span class="soft small" id="revealHint"></span>
+    </div>
+    <div id="mapHidden" class="notice">The map is hidden until the facilitator reveals it, so everyone maps without seeing each other's columns first.</div>
+    <div id="mapBody" class="hidden">
+      <div class="mapwrap"><table class="map" id="mapTable"></table></div>
+      <div class="legend">
+        <span><i class="glyph fill" style="color:var(--ink)"></i> strength</span>
+        <span><i class="glyph star" style="color:var(--ink)"></i> superpower</span>
+        <span><i class="glyph hollow" style="border-style:dashed;border-color:var(--develop)"></i> want to develop</span>
+      </div>
+
+      <h3 style="margin-top:28px">Reading the map</h3>
+      <div class="readings">
+        <div class="reading"><b>What we hold collectively</b><p class="small soft">Skills and attitudes most of us claim.</p><ul id="rShared"></ul></div>
+        <div class="reading"><b>Where nobody is</b><p class="small soft">Gap by design, or by accident?</p><ul id="rEmpty"></ul></div>
+        <div class="reading"><b>Single points of failure</b><p class="small soft">Skills only one person holds.</p><ul id="rSingle"></ul></div>
+        <div class="reading"><b>Shared development interest</b><p class="small soft">Skills several people want to grow.</p><ul id="rDev"></ul></div>
+      </div>
+
+      <h3 style="margin-top:28px">Three things the team wants to act on</h3>
+      <div class="obs">
+        <textarea id="obs1" placeholder="First observation"></textarea>
+        <textarea id="obs2" placeholder="Second observation"></textarea>
+        <textarea id="obs3" placeholder="Third observation"></textarea>
+      </div>
+      <div class="actions">
+        <button id="copyBtn">Copy summary</button>
+        <button id="dlBtn">Download summary</button>
+        <span class="status" id="copyStatus"></span>
+      </div>
+      <pre class="summary hidden" id="summaryPre"></pre>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  const PEOPLE = [
+    { id: "tim", name: "Tim" },
+    { id: "connie", name: "Connie" },
+    { id: "jenny", name: "Jenny" },
+    { id: "alex", name: "Alex" },
+    { id: "agnes", name: "Agnes" },
+    { id: "stas", name: "Stas" },
+    { id: "lavanya", name: "Lavanya" },
+    { id: "jen", name: "Jen" },
+  ];
+
+  const AREAS = [
+    { id: "together", name: "Working together", tagline: "Engaging others to create shared ownership of new solutions", color: "var(--together)", kind: "skill", items: [
+      { id: "engagement", name: "Citizen and stakeholder engagement", def: "Actively involving the people affected, including the unusual suspects, from generating ideas through to implementation." },
+      { id: "facilitation", name: "Creative facilitation", def: "Drawing out different perspectives and helping a group deliberate over multiple options." },
+      { id: "bridges", name: "Building bridges", def: "Finding common ground and a shared language across groups so they own a shared goal." },
+      { id: "brokering", name: "Brokering", def: "Mediating contrasting interests and reducing friction between stakeholders." },
+    ]},
+    { id: "learning", name: "Accelerating learning", tagline: "Exploring, testing and developing new ideas to inform and validate solutions", color: "var(--learning)", kind: "skill", items: [
+      { id: "future", name: "Future acumen", def: "Connecting a long-term vision with short-term achievable steps; exploring the future rather than predicting it." },
+      { id: "prototyping", name: "Prototyping and iterating", def: "Testing ideas early and cheaply, and improving them systematically from what you learn." },
+      { id: "data", name: "Data literacy and evidence", def: "Using quantitative and qualitative data with confidence to make sense of a problem." },
+      { id: "systems", name: "Systems thinking", def: "Holding the detail and the big picture together to grasp how a change ripples through a system." },
+      { id: "tech", name: "Tech literacy", def: "Understanding technological developments and where they add value, and where they don't." },
+    ]},
+    { id: "leading", name: "Leading change", tagline: "Mobilising resources and legitimacy to make change happen", color: "var(--leading)", kind: "skill", items: [
+      { id: "political", name: "Political and bureaucratic awareness", def: "Reading the organisation's dynamics and procedures to win strategic support.", gloss: "At the IB: knowing how to get something through governance." },
+      { id: "financing", name: "Financing change", def: "Knowing the many ways to find and use resources for innovation.", gloss: "At the IB: finding budget and cover for a pilot." },
+      { id: "intrapreneurship", name: "Intrapreneurship", def: "Challenging the status quo from inside and taking calculated risks to create opportunities." },
+      { id: "value", name: "Demonstrating value", def: "Articulating the value of a new approach in terms decision-makers care about." },
+      { id: "storytelling", name: "Storytelling and advocacy", def: "Turning insight and data into narratives that move people to act." },
+    ]},
+    { id: "attitudes", name: "Attitudes", tagline: "Settled ways of thinking and feeling that shape how you approach the work", color: "var(--attitude)", kind: "attitude", items: [
+      { id: "empathetic", name: "Empathetic", def: "Understanding others' experiences and frames of reference." },
+      { id: "imaginative", name: "Imaginative", def: "Exploring and envisioning new possible futures." },
+      { id: "outcomes", name: "Outcomes-focused", def: "A strong commitment to real-world effects." },
+      { id: "resilient", name: "Resilient", def: "The perseverance to deal with resistance and setbacks." },
+      { id: "curious", name: "Curious", def: "The desire to explore multiple possibilities." },
+      { id: "action", name: "Action-oriented", def: "A bias towards action and learning by doing." },
+      { id: "agile", name: "Agile", def: "Responding to changing environments with flexibility." },
+      { id: "reflective", name: "Reflective", def: "A habit of critically reflecting on process and results." },
+      { id: "courageous", name: "Courageous", def: "A willingness to take risks." },
+    ]},
+  ];
+  const SKILL_IDS = AREAS.filter(a => a.kind === "skill").flatMap(a => a.items.map(i => i.id));
+  const ATT_IDS = AREAS.filter(a => a.kind === "attitude").flatMap(a => a.items.map(i => i.id));
+  const ITEM_BY_ID = {};
+  AREAS.forEach(a => a.items.forEach(i => { ITEM_BY_ID[i.id] = { ...i, area: a }; }));
+  const LIMITS = { skills: 5, attitudes: 3, star: 1, develop: 2 };
+
+  // ---------- state ----------
+  let me = null;                       // person id
+  let mine = blank();                  // my marks
+  let all = {};                        // personId -> marks doc
+  let config = { revealed: false };
+  let notes = { obs1: "", obs2: "", obs3: "" };
+  let db = null;
+  const FACILITATOR = "tim";
+  let isOwner = false;
+  let saveTimer = null, saveChain = Promise.resolve(), dirty = 0;
+  const noteTimers = {};
+
+  function blank() { return { skills: [], attitudes: [], star: null, develop: [] }; }
+  function normalise(d) {
+    const out = blank();
+    if (!d || typeof d !== "object") return out;
+    out.skills = Array.isArray(d.skills) ? d.skills.filter(x => SKILL_IDS.includes(x)).slice(0, LIMITS.skills) : [];
+    out.attitudes = Array.isArray(d.attitudes) ? d.attitudes.filter(x => ATT_IDS.includes(x)).slice(0, LIMITS.attitudes) : [];
+    out.develop = Array.isArray(d.develop) ? d.develop.filter(x => SKILL_IDS.includes(x) && !out.skills.includes(x)).slice(0, LIMITS.develop) : [];
+    out.star = (typeof d.star === "string" && out.skills.includes(d.star)) ? d.star : null;
+    return out;
+  }
+  function hasMapped(d) { return d && (d.skills.length + d.attitudes.length) > 0; }
+
+  // ---------- local storage (per-viewer convenience only) ----------
+  function loadLocal() {
+    try {
+      const p = localStorage.getItem("cm.person");
+      if (p && PEOPLE.some(x => x.id === p)) me = p;
+    } catch (e) {}
+  }
+  function saveLocal() { try { localStorage.setItem("cm.person", me || ""); } catch (e) {} }
+
+  // ---------- rendering: names ----------
+  const $ = id => document.getElementById(id);
+  function renderNames() {
+    const box = $("names"); box.innerHTML = "";
+    PEOPLE.forEach(p => {
+      const b = document.createElement("button");
+      b.textContent = p.name;
+      b.className = me === p.id ? "on" : "";
+      b.addEventListener("click", () => choosePerson(p.id));
+      box.appendChild(b);
+    });
+  }
+  function choosePerson(id) {
+    me = id; saveLocal();
+    isOwner = (me === FACILITATOR);
+    mine = normalise(all[id]);
+    renderNames(); renderMine();
+    $("mine").classList.remove("hidden");
+    $("mine").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------- rendering: my rows ----------
+  function counts() {
+    return { skills: mine.skills.length, attitudes: mine.attitudes.length, star: mine.star ? 1 : 0, develop: mine.develop.length };
+  }
+  function renderMine() {
+    const c = counts();
+    setCounter("cSkills", c.skills, LIMITS.skills);
+    setCounter("cAtt", c.attitudes, LIMITS.attitudes);
+    setCounter("cStar", c.star, LIMITS.star);
+    setCounter("cDev", c.develop, LIMITS.develop);
+
+    const wrap = $("rows"); wrap.innerHTML = "";
+    AREAS.forEach(area => {
+      const sec = document.createElement("div");
+      sec.className = "area"; sec.style.setProperty("--area", area.color);
+      const h = document.createElement("h3"); h.textContent = area.name; sec.appendChild(h);
+      const tag = document.createElement("p"); tag.className = "soft small"; tag.textContent = area.tagline; sec.appendChild(tag);
+      area.items.forEach(item => sec.appendChild(renderRow(area, item, c)));
+      wrap.appendChild(sec);
+    });
+  }
+  function setCounter(id, n, max) {
+    const el = $(id); el.querySelector("b").textContent = n;
+    el.classList.toggle("full", n >= max);
+  }
+  function renderRow(area, item, c) {
+    const row = document.createElement("div"); row.className = "row";
+    const left = document.createElement("div");
+    const l = document.createElement("div"); l.className = "label"; l.textContent = item.name; left.appendChild(l);
+    const d = document.createElement("div"); d.className = "def"; d.textContent = item.def;
+    if (item.gloss) { const g = document.createElement("span"); g.className = "gloss"; g.textContent = " " + item.gloss; d.appendChild(g); }
+    left.appendChild(d);
+    row.appendChild(left);
+
+    const marks = document.createElement("div"); marks.className = "marks";
+    if (area.kind === "skill") {
+      const isStrength = mine.skills.includes(item.id);
+      const isStar = mine.star === item.id;
+      const isDev = mine.develop.includes(item.id);
+      marks.appendChild(mkBtn("Strength", "fill", isStrength, !isStrength && (c.skills >= LIMITS.skills || isDev), () => toggleSkill(item.id)));
+      marks.appendChild(mkBtn("Superpower", "star", isStar, !isStar && (!isStrength || c.star >= LIMITS.star), () => toggleStar(item.id)));
+      const dev = mkBtn("Develop", "hollow", isDev, !isDev && (c.develop >= LIMITS.develop || isStrength), () => toggleDev(item.id));
+      if (isDev) dev.classList.add("dev");
+      marks.appendChild(dev);
+    } else {
+      const isStrength = mine.attitudes.includes(item.id);
+      marks.appendChild(mkBtn("Strength", "fill", isStrength, !isStrength && c.attitudes >= LIMITS.attitudes, () => toggleAttitude(item.id)));
+    }
+    row.appendChild(marks);
+    return row;
+  }
+  function mkBtn(label, glyph, on, disabled, fn) {
+    const b = document.createElement("button");
+    const g = document.createElement("i"); g.className = "glyph " + (glyph === "fill" ? "fill" : glyph === "star" ? "star" : "");
+    b.appendChild(g); b.appendChild(document.createTextNode(label));
+    if (on) b.classList.add("on");
+    b.disabled = !!disabled;
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function toggleSkill(id) {
+    if (mine.skills.includes(id)) { mine.skills = mine.skills.filter(x => x !== id); if (mine.star === id) mine.star = null; }
+    else if (mine.skills.length < LIMITS.skills && !mine.develop.includes(id)) mine.skills.push(id);
+    changed();
+  }
+  function toggleAttitude(id) {
+    if (mine.attitudes.includes(id)) mine.attitudes = mine.attitudes.filter(x => x !== id);
+    else if (mine.attitudes.length < LIMITS.attitudes) mine.attitudes.push(id);
+    changed();
+  }
+  function toggleStar(id) {
+    if (mine.star === id) mine.star = null;
+    else if (mine.skills.includes(id)) mine.star = id;
+    changed();
+  }
+  function toggleDev(id) {
+    if (mine.develop.includes(id)) mine.develop = mine.develop.filter(x => x !== id);
+    else if (mine.develop.length < LIMITS.develop && !mine.skills.includes(id)) mine.develop.push(id);
+    changed();
+  }
+  function changed() {
+    all[me] = { ...mine };
+    renderMine(); renderMap();
+    dirty++;
+    scheduleSave();
+  }
+  function scheduleSave() {
+    if (!db || !me) return;
+    clearTimeout(saveTimer);
+    $("saveStatus").textContent = "Saving…";
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      const snapshot = { ...mine, updatedAt: new Date().toISOString() };
+      const who = me, stamp = dirty;
+      saveChain = saveChain.then(() => db.ref("map/marks/" + who).set(snapshot)).then(() => {
+        if (dirty === stamp) dirty = 0;
+        if (me === who) $("saveStatus").textContent = "Saved";
+      }).catch(e => {
+        $("saveStatus").textContent = "Couldn't save just now (" + ((e && e.code) || "network") + "). It will retry on your next change.";
+      });
+    }, 600);
+  }
+
+  // ---------- rendering: map ----------
+  function renderMap() {
+    const mapped = PEOPLE.filter(p => hasMapped(all[p.id]));
+    $("mapCount").textContent = mapped.length + " of " + PEOPLE.length + " have mapped" + (mapped.length ? ": " + mapped.map(p => p.name).join(", ") : ".");
+
+    const show = config.revealed;
+    $("mapHidden").classList.toggle("hidden", show);
+    $("mapBody").classList.toggle("hidden", !show);
+    $("revealCtl").classList.toggle("hidden", !isOwner);
+    $("revealBtn").textContent = show ? "Hide the map" : "Reveal the map to everyone";
+    $("revealHint").textContent = show ? "" : "Shown to whoever picked Tim.";
+    if (!show) return;
+
+    const t = $("mapTable"); t.innerHTML = "";
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    hr.appendChild(th("", "name"));
+    PEOPLE.forEach(p => {
+      const h = th(p.name, "person"); if (!hasMapped(all[p.id])) h.classList.add("unmapped"); hr.appendChild(h);
+    });
+    hr.appendChild(th("Holders", ""));
+    thead.appendChild(hr); t.appendChild(thead);
+
+    const n = mapped.length;
+    const readings = { shared: [], empty: [], single: [], dev: [] };
+    const tbody = document.createElement("tbody");
+    AREAS.forEach(area => {
+      const ah = document.createElement("tr"); ah.className = "area-head"; ah.style.setProperty("--area", area.color);
+      const td = document.createElement("td"); td.colSpan = PEOPLE.length + 2; td.textContent = area.name; ah.appendChild(td);
+      tbody.appendChild(ah);
+      area.items.forEach(item => {
+        const tr = document.createElement("tr");
+        const nameTd = document.createElement("td"); nameTd.className = "name"; nameTd.textContent = item.name; tr.appendChild(nameTd);
+        let holders = 0, devs = 0;
+        PEOPLE.forEach(p => {
+          const d = all[p.id];
+          const cellTd = document.createElement("td");
+          const cell = document.createElement("span"); cell.className = "cell";
+          if (d) {
+            const isStrength = area.kind === "skill" ? d.skills.includes(item.id) : d.attitudes.includes(item.id);
+            if (isStrength) {
+              holders++;
+              const g = document.createElement("i");
+              g.className = "glyph " + (d.star === item.id ? "star" : "fill");
+              g.style.color = area.color;
+              g.title = d.star === item.id ? p.name + ": superpower" : p.name + ": strength";
+              cell.appendChild(g);
+            } else if (area.kind === "skill" && d.develop.includes(item.id)) {
+              devs++;
+              const g = document.createElement("i"); g.className = "glyph hollow"; g.title = p.name + ": wants to develop"; cell.appendChild(g);
+            }
+          }
+          cellTd.appendChild(cell); tr.appendChild(cellTd);
+        });
+        const tot = document.createElement("td"); tot.className = "total"; tot.textContent = holders ? String(holders) : ""; tr.appendChild(tot);
+        if (n >= 3) {
+          if (holders === 0) { tr.classList.add("flag-empty"); readings.empty.push(item.name); }
+          if (holders === 1) { tr.classList.add("flag-single"); readings.single.push(item.name + " (" + holderNames(area, item)[0] + ")"); }
+          if (holders >= Math.max(3, Math.ceil(n * 0.6))) readings.shared.push(item.name + " (" + holders + ")");
+          if (devs >= 3) readings.dev.push(item.name + " (" + devs + ")");
+        }
+        tbody.appendChild(tr);
+      });
+    });
+    t.appendChild(tbody);
+
+    fillList("rShared", readings.shared, n);
+    fillList("rEmpty", readings.empty, n);
+    fillList("rSingle", readings.single, n);
+    fillList("rDev", readings.dev, n);
+  }
+  function holderNames(area, item) {
+    return PEOPLE.filter(p => { const d = all[p.id]; return d && (area.kind === "skill" ? d.skills : d.attitudes).includes(item.id); }).map(p => p.name);
+  }
+  function th(text, cls) { const h = document.createElement("th"); h.textContent = text; if (cls) h.className = cls; return h; }
+  function fillList(id, items, n) {
+    const ul = $(id); ul.innerHTML = "";
+    if (n < 3) { const li = document.createElement("li"); li.className = "none"; li.textContent = "Shows once three people have mapped."; ul.appendChild(li); return; }
+    if (!items.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = "Nothing here yet."; ul.appendChild(li); return; }
+    items.forEach(x => { const li = document.createElement("li"); li.textContent = x; ul.appendChild(li); });
+  }
+
+  // ---------- summary ----------
+  function summaryText() {
+    const lines = [];
+    lines.push("Innovation competencies map, Education Innovation team");
+    lines.push("Generated " + new Date().toLocaleString());
+    lines.push("");
+    AREAS.forEach(area => {
+      lines.push(area.name);
+      area.items.forEach(item => {
+        const holders = holderNames(area, item);
+        const stars = PEOPLE.filter(p => all[p.id] && all[p.id].star === item.id).map(p => p.name);
+        const devs = area.kind === "skill" ? PEOPLE.filter(p => all[p.id] && all[p.id].develop.includes(item.id)).map(p => p.name) : [];
+        let s = "  " + item.name + ": " + (holders.length ? holders.join(", ") : "nobody");
+        if (stars.length) s += "; superpower for " + stars.join(", ");
+        if (devs.length) s += "; wants to develop: " + devs.join(", ");
+        lines.push(s);
+      });
+      lines.push("");
+    });
+    lines.push("Three things the team wants to act on");
+    ["obs1", "obs2", "obs3"].forEach((k, i) => lines.push("  " + (i + 1) + ". " + (notes[k] || "")));
+    return lines.join("\n");
+  }
+  $("copyBtn").addEventListener("click", async () => {
+    const text = summaryText();
+    const pre = $("summaryPre"); pre.textContent = text; pre.classList.remove("hidden");
+    try { await navigator.clipboard.writeText(text); $("copyStatus").textContent = "Copied. The summary is also shown below."; }
+    catch (e) { $("copyStatus").textContent = "Select and copy the summary below."; }
+  });
+  $("dlBtn").addEventListener("click", () => {
+    const blob = new Blob([summaryText()], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "competency-map.txt";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  // ---------- observations ----------
+  ["obs1", "obs2", "obs3"].forEach(k => {
+    const ta = $(k);
+    ta.addEventListener("input", () => {
+      notes[k] = ta.value;
+      if (!db) return;
+      clearTimeout(noteTimers[k]);
+      noteTimers[k] = setTimeout(() => { db.ref("map/notes/" + k).set({ text: ta.value, updatedAt: new Date().toISOString() }).catch(() => {}); }, 800);
+    });
+  });
+  function applyNote(k, text) {
+    notes[k] = text || "";
+    const ta = $(k);
+    if (document.activeElement !== ta && ta.value !== notes[k]) ta.value = notes[k];
+  }
+
+  // ---------- reveal control ----------
+  $("revealBtn").addEventListener("click", () => {
+    if (!db) return;
+    const next = !config.revealed;
+    db.ref("map/config").set({ revealed: next, updatedAt: new Date().toISOString() }).catch(() => {});
+  });
+
+  // ---------- boot ----------
+  loadLocal();
+  isOwner = (me === FACILITATOR);
+  renderNames();
+  if (me) { mine = blank(); $("mine").classList.remove("hidden"); renderMine(); }
+  renderMap();
+
+  try {
+    if (!FIREBASE_CONFIG.databaseURL || FIREBASE_CONFIG.databaseURL.includes("PASTE_ME")) throw new Error("config");
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+  } catch (e) {
+    $("dbNotice").classList.remove("hidden");
+    db = null;
+  }
+
+  if (db) {
+    db.ref("map/marks").on("value", snap => {
+      const raw = snap.val() || {};
+      const next = {};
+      PEOPLE.forEach(p => { if (raw[p.id]) next[p.id] = normalise(raw[p.id]); });
+      all = next;
+      if (me) {
+        if (dirty) { all[me] = { ...mine }; }
+        else if (all[me]) { mine = { ...all[me] }; renderMine(); }
+      }
+      renderMap();
+    }, () => { $("dbNotice").textContent = "Live updates stopped. Reload the page to reconnect."; $("dbNotice").classList.remove("hidden"); });
+
+    db.ref("map/config").on("value", snap => {
+      const v = snap.val();
+      config = { revealed: !!(v && v.revealed) };
+      renderMap();
+    });
+
+    ["obs1", "obs2", "obs3"].forEach(k => {
+      db.ref("map/notes/" + k).on("value", snap => { const v = snap.val(); applyNote(k, v ? v.text : ""); });
+    });
+  }
+})();
+</script>
+</body>
+</html>
