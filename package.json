@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "name": "nesta-competency-map-tests",
+  "version": "1.0.0",
+  "description": "Playwright acceptance tests for the innovation competencies map",
+  "scripts": {
+    "test": "playwright test",
+    "clear": "node scripts/clear-db.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "http-server": "14.1.1"
+  }
+}

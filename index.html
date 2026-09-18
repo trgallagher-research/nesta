@@ -10,11 +10,11 @@
   // Paste your Firebase web app config here (Project settings > Your apps > SDK setup and configuration).
   // Keep databaseURL: the page needs it for the Realtime Database.
   const FIREBASE_CONFIG = {
-    apiKey: "PASTE_ME",
-    authDomain: "PASTE_ME.firebaseapp.com",
-    databaseURL: "https://PASTE_ME-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "PASTE_ME",
-    appId: "PASTE_ME"
+    apiKey: "AIzaSyCYHEx9TB1GWwn1u_6k0Ai6a068InKgV-w",
+    authDomain: "nesta-8e5fe.firebaseapp.com",
+    databaseURL: "https://nesta-8e5fe-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "nesta-8e5fe",
+    appId: "1:373310270333:web:e521aab119c9d35521fa14"
   };
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -347,7 +347,7 @@
     me = id; saveLocal();
     isOwner = (me === FACILITATOR);
     mine = normalise(all[id]);
-    renderNames(); renderMine();
+    renderNames(); renderMine(); renderMap();
     $("mine").classList.remove("hidden");
     $("mine").scrollIntoView({ behavior: "smooth", block: "start" });
   }
