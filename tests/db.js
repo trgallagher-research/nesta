@@ -17,20 +17,22 @@ function readDatabaseUrl() {
   return match[1];
 }
 
-// Deletes everything under map/ in the database and waits for the delete
-// to be confirmed by a follow-up read.
+// Deletes everything under map/ and archive/ in the database and waits for
+// the deletes to be confirmed by a follow-up read.
 async function clearMap() {
   const databaseUrl = readDatabaseUrl();
-  const delResponse = await fetch(databaseUrl + '/map.json', { method: 'DELETE' });
-  if (!delResponse.ok) {
-    throw new Error('delete failed: ' + delResponse.status + ' ' + delResponse.statusText);
+  for (const node of ['map', 'archive']) {
+    const delResponse = await fetch(databaseUrl + '/' + node + '.json', { method: 'DELETE' });
+    if (!delResponse.ok) {
+      throw new Error('delete failed: ' + delResponse.status + ' ' + delResponse.statusText);
+    }
+    const getResponse = await fetch(databaseUrl + '/' + node + '.json');
+    const value = await getResponse.json();
+    if (value !== null) {
+      throw new Error(node + '/ was not cleared, still holds: ' + JSON.stringify(value));
+    }
   }
-  const getResponse = await fetch(databaseUrl + '/map.json');
-  const value = await getResponse.json();
-  if (value !== null) {
-    throw new Error('map/ was not cleared, still holds: ' + JSON.stringify(value));
-  }
-  return value;
+  return null;
 }
 
 module.exports = { readDatabaseUrl, clearMap };
