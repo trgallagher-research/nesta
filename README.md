@@ -34,7 +34,7 @@ https://trgallagher-research.github.io/nesta/
 
 ## Running a session
 
-Open the page, pick Tim, place a few marks. Open it in a second browser (or on your phone), pick another name, and check the first browser's map updates once you press "Reveal the map to everyone". At the end, "Copy summary", "Download summary" and "Download as Excel" export the map and the three observations. Then clear your test marks.
+Open the page, pick Tim, place a few marks. The session name defaults to today's date and time in the Netherlands, in words; edit it in the box above the reveal button if you'd rather give the session a different name — everyone sees the same name. Open it in a second browser (or on your phone), pick another name, and check the first browser's map updates once you press "Reveal the map to everyone". At the end, "Copy summary", "Download summary" and "Download as Excel" export the map, the session name and the three observations. "Save a snapshot" keeps a copy of the map under the current session name without clearing anything, useful partway through a discussion. Then clear your test marks.
 
 The session itself runs to a tight schedule, in outline:
 
@@ -47,10 +47,10 @@ The session itself runs to a tight schedule, in outline:
 
 ## Clearing the database between sessions
 
-Any of these removes everything under `map/` in the database: all marks, the revealed flag, and the three observations. Download or copy the summary first if you want to keep a record.
+Any of these removes everything under `map/` in the database: all marks, the revealed flag, the session name and the three observations. Download or copy the summary first if you want to keep a record.
 
-1. In the page itself: pick Tim, reveal the map, press "Reset for a new session", and confirm. An Excel copy of the map downloads first, then everyone's marks and the observations are cleared for all open browsers.
-2. From a checkout, after `npm install`, run `npm run clear`.
+1. In the page itself: pick Tim, reveal the map, press "Reset for a new session", and confirm. Resetting saves a snapshot of the current map under `archive/` and downloads an Excel copy first — if the snapshot can't be saved, nothing is cleared — then everyone's marks and the observations are cleared for all open browsers. Snapshots saved this way are not removed by the in-page reset; they live under `archive/` in the Firebase console until you delete them, for example with `npm run clear`.
+2. From a checkout, after `npm install`, run `npm run clear` (this also empties `archive/`).
 3. Or run this single command:
    ```
    curl -X DELETE "https://nesta-8e5fe-default-rtdb.europe-west1.firebasedatabase.app/map.json"

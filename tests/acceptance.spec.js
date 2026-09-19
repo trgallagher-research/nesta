@@ -436,4 +436,90 @@ test.describe('nesta competency map acceptance', () => {
 
     await ctx.close();
   });
+
+  test('criterion 13: session name defaults to the Netherlands date and time, can be edited by Tim, and appears everywhere', async ({ browser }) => {
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    const pageB = await ctxB.newPage();
+
+    await openAs(pageA, 'Tim');
+    await openAs(pageB, 'Connie');
+
+    await expect(pageA.locator('#sessionName')).toHaveValue(
+      /^[A-Z][a-z]+day \d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}, \d{2}:\d{2}$/
+    );
+
+    await pageA.locator('#sessionName').fill('Test session');
+    await pageA.waitForTimeout(1000);
+
+    const databaseUrl = readDatabaseUrl();
+    await expect(async () => {
+      const res = await fetch(databaseUrl + '/map/config/sessionName.json');
+      const value = await res.json();
+      expect(value).toBe('Test session');
+    }).toPass({ timeout: 3000 });
+
+    await applyMarks(pageA, TIM_SET);
+    await waitSaved(pageA);
+    await pageA.locator('#revealBtn').click();
+    await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await pageA.locator('#copyBtn').click();
+    await expect(pageA.locator('#summaryPre')).toBeVisible();
+    const text = await pageA.locator('#summaryPre').innerText();
+    expect(text).toContain('Test session');
+
+    await ctxA.close();
+    await ctxB.close();
+  });
+
+  test('criterion 14: save a snapshot writes archive/<timestamp>, and reset saves one before clearing', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+
+    await openAs(page, 'Tim');
+    await applyMarks(page, TIM_SET);
+    await waitSaved(page);
+
+    await page.locator('#revealBtn').click();
+    await expect(page.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await page.locator('#snapBtn').click();
+    await expect(page.locator('#revealHint')).toContainText('Snapshot saved', { timeout: 3000 });
+
+    const databaseUrl = readDatabaseUrl();
+    let firstKey;
+    await expect(async () => {
+      const res = await fetch(databaseUrl + '/archive.json');
+      const value = await res.json();
+      const keys = Object.keys(value || {});
+      expect(keys.length).toBe(1);
+      firstKey = keys[0];
+      const entry = value[firstKey];
+      expect(
+        entry.name === 'Test session' ||
+        /^[A-Z][a-z]+day \d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}, \d{2}:\d{2}$/.test(entry.name)
+      ).toBe(true);
+      expect(entry.data.marks.tim.skills.length).toBe(5);
+    }).toPass({ timeout: 3000 });
+
+    page.once('dialog', d => d.accept());
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#resetBtn'),
+    ]);
+    expect(download.suggestedFilename()).toBe('competency-map.xlsx');
+
+    await expect(async () => {
+      const archiveRes = await fetch(databaseUrl + '/archive.json');
+      const archiveValue = await archiveRes.json();
+      expect(Object.keys(archiveValue || {}).length).toBe(2);
+      const mapRes = await fetch(databaseUrl + '/map.json');
+      const mapValue = await mapRes.json();
+      expect(mapValue).toBeNull();
+    }).toPass({ timeout: 3000 });
+
+    await ctx.close();
+  });
 });

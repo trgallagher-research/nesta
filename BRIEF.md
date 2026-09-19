@@ -26,14 +26,17 @@ Run of the session:
 - Copy and download a plain-text summary.
 - Download the map as an Excel workbook (built in plain JavaScript, no library).
 - A reset control, shown only to whoever picked Tim, that downloads the Excel copy first, then clears everyone's marks, the revealed flag and the observations after a confirmation.
+- An editable session name, shown to Tim, shared with everyone, defaulting to the date and time in the Netherlands in plain words.
+- Save a snapshot (Tim only) copies the current map into archive/<timestamp> in the database; reset saves a snapshot first and refuses to clear if that fails.
 
 ## Data model (Firebase Realtime Database, test mode)
 
 ```
 map/
   marks/<personId>   { skills: [], attitudes: [], star: id|null, develop: [], updatedAt }
-  config             { revealed: bool, updatedAt }
+  config             { revealed, sessionName, updatedAt }
   notes/obs1..obs3   { text, updatedAt }
+archive/<timestamp>  { name, savedAt, data }
 ```
 
 Person ids: tim, connie, jenny, alex, agnes, stas, lavanya, jen.
@@ -59,6 +62,8 @@ Person ids: tim, connie, jenny, alex, agnes, stas, lavanya, jen.
 10. README explains setup in the words of SETUP.md, plus how to clear the database between runs.
 11. Reset, available only to Tim, asks for confirmation, downloads the Excel file, and empties `map/` so every open browser shows a blank map within 3 seconds.
 12. "Download as Excel" produces a valid .xlsx containing every row and the three observations.
+13. The session name defaults to the Netherlands date and time in words, can be edited by Tim, appears in every browser, and heads the text and Excel summaries.
+14. Save a snapshot writes archive/<timestamp> with the session name and the current map; reset writes one before clearing.
 
 ## Out of scope
 

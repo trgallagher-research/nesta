@@ -175,6 +175,12 @@
     border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px;
   }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .ctl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  #revealCtl input {
+    font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 10px;
+    min-width: 260px; max-width: 100%;
+  }
   pre.summary { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 0.9rem; max-width: 100%; overflow-x: auto; }
   .status { color: var(--ink-soft); font-size: 0.9rem; min-height: 1.3em; }
 </style>
@@ -210,9 +216,17 @@
     <h2>Team map</h2>
     <p class="soft small" id="mapCount"></p>
     <div id="revealCtl" class="hidden">
-      <button id="revealBtn"></button>
-      <span class="soft small" id="revealHint"></span>
-      <button id="resetBtn">Reset for a new session</button>
+      <div class="ctl">
+        <label for="sessionName" class="soft small">Session name</label>
+        <input id="sessionName" type="text" maxlength="80">
+      </div>
+      <div class="ctl">
+        <button id="revealBtn"></button>
+        <span class="soft small" id="revealHint"></span>
+        <button id="snapBtn">Save a snapshot</button>
+        <button id="resetBtn">Reset for a new session</button>
+      </div>
+      <p class="soft small" id="snapList"></p>
     </div>
     <div id="mapHidden" class="notice">The map is hidden until the facilitator reveals it, so everyone maps without seeing each other's columns first.</div>
     <div id="mapBody" class="hidden">
@@ -304,13 +318,61 @@
   let me = null;                       // person id
   let mine = blank();                  // my marks
   let all = {};                        // personId -> marks doc
-  let config = { revealed: false };
+  let config = { revealed: false, sessionName: "" };
   let notes = { obs1: "", obs2: "", obs3: "" };
+  let archive = {};
   let db = null;
   const FACILITATOR = "tim";
   let isOwner = false;
   let saveTimer = null, saveChain = Promise.resolve(), dirty = 0;
   const noteTimers = {};
+  let sessionNameTimer = null;
+
+  function ordinal(n) {
+    const rem100 = n % 100;
+    if (rem100 >= 11 && rem100 <= 13) return "th";
+    switch (n % 10) {
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
+    }
+  }
+  function defaultSessionName() {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Amsterdam",
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date());
+    const get = t => (parts.find(p => p.type === t) || {}).value || "";
+    const weekday = get("weekday");
+    const day = parseInt(get("day"), 10);
+    const month = get("month");
+    const year = get("year");
+    const hour = get("hour");
+    const minute = get("minute");
+    return weekday + " " + day + ordinal(day) + " " + month + " " + year + ", " + hour + ":" + minute;
+  }
+  function currentSessionName() {
+    return (config.sessionName && config.sessionName.trim()) ? config.sessionName : defaultSessionName();
+  }
+  function formatArchiveTime(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso || "";
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Amsterdam",
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(d);
+    const get = t => (parts.find(p => p.type === t) || {}).value || "";
+    const weekday = get("weekday");
+    const day = parseInt(get("day"), 10);
+    const month = get("month");
+    const year = get("year");
+    const hour = get("hour");
+    const minute = get("minute");
+    return weekday + " " + day + ordinal(day) + " " + month + " " + year + ", " + hour + ":" + minute;
+  }
 
   function blank() { return { skills: [], attitudes: [], star: null, develop: [] }; }
   function normalise(d) {
@@ -469,6 +531,8 @@
     $("revealCtl").classList.toggle("hidden", !isOwner);
     $("revealBtn").textContent = show ? "Hide the map" : "Reveal the map to everyone";
     $("revealHint").textContent = show ? "" : "Shown to whoever picked Tim.";
+    const nameInput = $("sessionName");
+    if (document.activeElement !== nameInput) nameInput.value = currentSessionName();
     if (!show) return;
 
     const t = $("mapTable"); t.innerHTML = "";
@@ -533,6 +597,14 @@
     return PEOPLE.filter(p => { const d = all[p.id]; return d && (area.kind === "skill" ? d.skills : d.attitudes).includes(item.id); }).map(p => p.name);
   }
   function th(text, cls) { const h = document.createElement("th"); h.textContent = text; if (cls) h.className = cls; return h; }
+  function renderSnapList() {
+    const el = $("snapList");
+    const entries = Object.keys(archive).map(k => archive[k]).filter(Boolean);
+    if (!entries.length) { el.textContent = "No snapshots saved yet."; return; }
+    entries.sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+    const parts = entries.map(e => (e.name || "Untitled session") + " (" + formatArchiveTime(e.savedAt) + ")");
+    el.textContent = "Snapshots saved: " + parts.join("; ");
+  }
   function fillList(id, items, n) {
     const ul = $(id); ul.innerHTML = "";
     if (n < 3) { const li = document.createElement("li"); li.className = "none"; li.textContent = "Shows once three people have mapped."; ul.appendChild(li); return; }
@@ -543,7 +615,7 @@
   // ---------- summary ----------
   function summaryText() {
     const lines = [];
-    lines.push("Innovation competencies map, Education Innovation team");
+    lines.push("Innovation competencies map, Education Innovation team, " + currentSessionName());
     lines.push("Generated " + new Date().toLocaleString());
     lines.push("");
     AREAS.forEach(area => {
@@ -642,7 +714,7 @@
   }
   function excelBlob() {
     const header = ["Competency", "Area"].concat(PEOPLE.map(p => p.name)).concat(["Holders"]);
-    const rows = [header];
+    const rows = [["Session", currentSessionName()], header];
     AREAS.forEach(area => {
       area.items.forEach(item => {
         const row = [item.name, area.name];
@@ -736,21 +808,59 @@
     if (document.activeElement !== ta && ta.value !== notes[k]) ta.value = notes[k];
   }
 
+  // ---------- session name ----------
+  $("sessionName").addEventListener("input", (e) => {
+    const value = e.target.value;
+    config = { ...config, sessionName: value };
+    if (!db) return;
+    clearTimeout(sessionNameTimer);
+    sessionNameTimer = setTimeout(() => {
+      db.ref("map/config/sessionName").set(value.trim()).catch(() => {});
+    }, 800);
+  });
+
+  // ---------- snapshots ----------
+  function snapshotKey() {
+    return new Date().toISOString().replace(/[.:]/g, "-");
+  }
+  function saveSnapshot() {
+    if (!db) return Promise.reject(new Error("no database"));
+    const name = currentSessionName();
+    return db.ref("map").once("value").then(snap => {
+      const key = snapshotKey();
+      return db.ref("archive/" + key).set({
+        name: name,
+        savedAt: new Date().toISOString(),
+        data: snap.val() || {},
+      });
+    }).then(() => name);
+  }
+
   // ---------- reveal control ----------
   $("revealBtn").addEventListener("click", () => {
     if (!db) return;
     const next = !config.revealed;
-    db.ref("map/config").set({ revealed: next, updatedAt: new Date().toISOString() }).catch(() => {});
+    db.ref("map/config").update({ revealed: next, updatedAt: new Date().toISOString() }).catch(() => {});
+  });
+  $("snapBtn").addEventListener("click", () => {
+    if (!db) return;
+    saveSnapshot().then(name => {
+      $("revealHint").textContent = "Snapshot saved as " + name + ".";
+    }).catch(() => {
+      $("revealHint").textContent = "Couldn't save a snapshot just now. Try again.";
+    });
   });
   $("resetBtn").addEventListener("click", () => {
     if (!db) return;
-    const ok = window.confirm("This clears everyone's marks, the revealed map and the three observations, for all eight people. An Excel copy of the current map will download first. Reset now?");
+    const ok = window.confirm("This saves a snapshot and an Excel copy of the current map, then clears everyone's marks, the revealed map and the three observations, for all eight people. Reset now?");
     if (!ok) return;
-    downloadExcel();
-    db.ref("map").remove().then(() => {
+    saveSnapshot().then(() => {
+      downloadExcel();
+      return db.ref("map").remove();
+    }).then(() => {
       $("revealHint").textContent = "Reset done. Everyone's column is empty again.";
     }).catch(() => {
-      $("revealHint").textContent = "Couldn't reset just now. Try again.";
+      $("revealHint").textContent = "Couldn't save a snapshot, so nothing was cleared. Try again.";
     });
   });
 
@@ -760,6 +870,7 @@
   renderNames();
   if (me) { mine = blank(); $("mine").classList.remove("hidden"); renderMine(); }
   renderMap();
+  renderSnapList();
 
   try {
     if (!FIREBASE_CONFIG.databaseURL || FIREBASE_CONFIG.databaseURL.includes("PASTE_ME")) throw new Error("config");
@@ -786,12 +897,17 @@
 
     db.ref("map/config").on("value", snap => {
       const v = snap.val();
-      config = { revealed: !!(v && v.revealed) };
+      config = { revealed: !!(v && v.revealed), sessionName: (v && v.sessionName) || "" };
       renderMap();
     });
 
     ["obs1", "obs2", "obs3"].forEach(k => {
       db.ref("map/notes/" + k).on("value", snap => { const v = snap.val(); applyNote(k, v ? v.text : ""); });
+    });
+
+    db.ref("archive").on("value", snap => {
+      archive = snap.val() || {};
+      renderSnapList();
     });
   }
 })();
