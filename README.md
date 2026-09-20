@@ -32,6 +32,10 @@ For this repository, Pages is enabled at Settings, then Pages, Source "Deploy fr
 
 https://trgallagher-research.github.io/nesta/
 
+### Falling back to an earlier version
+
+The branch `before-observations` holds the version that was live before the observations and connections step were added (session name, snapshots, reset and Excel export included). To fall back, open a pull request from `before-observations` into `main` and merge it, or in Settings, then Pages, temporarily choose `before-observations` as the branch to deploy from. Pages redeploys within a minute or two of any change to the deployed branch.
+
 ## Running a session
 
 Open the page, pick Tim, place a few marks. The session name defaults to today's date and time in the Netherlands, in words; edit it in the box above the reveal button if you'd rather give the session a different name — everyone sees the same name. Open it in a second browser (or on your phone), pick another name, and check the first browser's map updates once you press "Reveal the map to everyone". After the reveal, each person types one observation into their own box, with a sentence stem to prompt them; everyone's observations appear in a shared list as they're typed. When you're ready, press "Show the connections" to add two more readings — strengths only one person has, and development pairs — to the discussion; press it again to hide them. At the end, "Copy summary", "Download summary" and "Download as Excel" export the map, the session name, everyone's observations and the connections. "Save a snapshot" keeps a copy of the map under the current session name without clearing anything, useful partway through a discussion. Then clear your test marks.
