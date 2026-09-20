@@ -31,6 +31,8 @@ Run of the session:
 - A reset control, shown only to whoever picked Tim, that downloads the Excel copy first, then clears everyone's marks, the revealed flag and the observations after a confirmation.
 - An editable session name, shown to Tim, shared with everyone, defaulting to the date and time in the Netherlands in plain words.
 - Save a snapshot (Tim only) copies the current map into archive/<timestamp> in the database; reset saves a snapshot first and refuses to clear if that fails.
+- A cluster chart above the table: one unnamed dot per strength holder and a dashed circle per person wanting to develop, on a shared eight-slot axis, grouped by area and sorted by count within each area.
+- A per-viewer toggle to sort the table's rows by count within each area; framework order by default.
 
 ## Data model (Firebase Realtime Database, test mode)
 
@@ -69,6 +71,8 @@ Person ids: tim, connie, jenny, alex, agnes, stas, lavanya, jen.
 14. Save a snapshot writes archive/<timestamp> with the session name and the current map; reset writes one before clearing.
 15. At reveal the readings are collective strengths, gaps on the map and skills several of us want to develop; no reading or row flag names a single person until the connections step.
 16. Show the connections is visible only to Tim, toggles for every browser within 3 seconds, and lists strengths only one person has and development pairs in the form "Alex wants to develop brokering; it is a strength for Connie and Stas."
+17. After reveal, the cluster chart shows one row per competency grouped by area, with dot counts equal to the holders column, sorted by count within each area, and no person's name anywhere in it.
+18. The sort toggle reorders the table's rows within each area by holders count and back, and the choice survives a reload in the same browser.
 
 ## Out of scope
 
