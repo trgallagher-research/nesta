@@ -6,6 +6,8 @@ A single static web page (`index.html`) that eight people open at the same time 
 
 The page is already written. The job is to wire it up, prove it works with two browsers against the real database, deploy it, and keep it exactly this simple.
 
+A companion page, `framework.html`, gives a five-step, screen-shareable orientation to Nesta's competency framework before mapping begins.
+
 ## The session it serves
 
 Eight people: Tim (facilitator), Connie (director), Jenny, Alex, Agnese, Stas, Lavanya, Jenn. All senior experts in the IB's Education Innovation department. Hybrid: some in The Hague, some in the US.
