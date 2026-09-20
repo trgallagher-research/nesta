@@ -10,13 +10,16 @@ module.exports = defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  timeout: 60000,
+  // Set EXPECT_TIMEOUT and TEST_TIMEOUT (milliseconds) on slow connections.
+  timeout: Number(process.env.TEST_TIMEOUT) || 60000,
   expect: {
-    timeout: 5000,
+    timeout: Number(process.env.EXPECT_TIMEOUT) || 5000,
   },
   use: {
     baseURL: 'http://127.0.0.1:4173',
     permissions: ['clipboard-read', 'clipboard-write'],
+    // Set IGNORE_HTTPS_ERRORS=1 when running behind a proxy that re-signs TLS.
+    ignoreHTTPSErrors: process.env.IGNORE_HTTPS_ERRORS === '1',
   },
   projects: [
     {

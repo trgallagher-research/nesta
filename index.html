@@ -152,7 +152,7 @@
   table.map td.name, table.map th.name { text-align: left; white-space: normal; min-width: 210px; }
   table.map tr.area-head td { text-align: left; font-weight: 700; color: var(--area); padding-top: 14px; border-bottom: 2px solid var(--area); background: var(--paper); }
   table.map td.total { color: var(--ink-soft); }
-  table.map tr.flag-single td.name::after { content: " (one holder)"; color: var(--ink-soft); font-size: 0.85rem; }
+  table.map tr.flag-single td.name::after { content: " (one person)"; color: var(--ink-soft); font-size: 0.85rem; }
   table.map tr.flag-empty td.name::after { content: " (nobody)"; color: var(--ink-soft); font-size: 0.85rem; }
   .cell { display: inline-flex; gap: 3px; align-items: center; justify-content: center; }
   .cell .glyph { width: 13px; height: 13px; }
@@ -213,7 +213,7 @@
   </section>
 
   <section id="mapSection">
-    <h2>Team map</h2>
+    <h2>Team map as of today</h2>
     <p class="soft small" id="mapCount"></p>
     <div id="revealCtl" class="hidden">
       <div class="ctl">
@@ -223,12 +223,13 @@
       <div class="ctl">
         <button id="revealBtn"></button>
         <span class="soft small" id="revealHint"></span>
+        <button id="connBtn"></button>
         <button id="snapBtn">Save a snapshot</button>
         <button id="resetBtn">Reset for a new session</button>
       </div>
       <p class="soft small" id="snapList"></p>
     </div>
-    <div id="mapHidden" class="notice">The map is hidden until the facilitator reveals it, so everyone maps without seeing each other's columns first.</div>
+    <div id="mapHidden" class="notice">The map is hidden until the facilitator reveals it, so everyone maps without seeing each other's columns first. When it opens, look for where we cluster and where the gaps on the map are, not for who has most. Nobody has all of these.</div>
     <div id="mapBody" class="hidden">
       <div class="mapwrap"><table class="map" id="mapTable"></table></div>
       <div class="legend">
@@ -239,18 +240,29 @@
 
       <h3 style="margin-top:28px">Reading the map</h3>
       <div class="readings">
-        <div class="reading"><b>What we hold collectively</b><p class="small soft">Skills and attitudes most of us claim.</p><ul id="rShared"></ul></div>
-        <div class="reading"><b>Where nobody is</b><p class="small soft">Gap by design, or by accident?</p><ul id="rEmpty"></ul></div>
-        <div class="reading"><b>Single points of failure</b><p class="small soft">Skills only one person holds.</p><ul id="rSingle"></ul></div>
-        <div class="reading"><b>Shared development interest</b><p class="small soft">Skills several people want to grow.</p><ul id="rDev"></ul></div>
+        <div class="reading"><b>Collective strengths</b><p class="small soft">Skills and attitudes most of us have marked.</p><ul id="rShared"></ul></div>
+        <div class="reading"><b>Gaps on the map</b><p class="small soft">Nobody has marked these.</p><ul id="rEmpty"></ul></div>
+        <div class="reading"><b>Skills several of us want to develop</b><p class="small soft">Marked to develop by three or more of us.</p><ul id="rDev"></ul></div>
       </div>
 
-      <h3 style="margin-top:28px">Three things the team wants to act on</h3>
+      <h3 style="margin-top:28px">Observations</h3>
+      <p class="soft small">Write one thing you notice in the map. Say why it matters if you like.</p>
+      <p class="soft small">For example: I noticed that nobody marked financing change, which might matter because our pilots always need budget cover.</p>
       <div class="obs">
-        <textarea id="obs1" placeholder="First observation"></textarea>
-        <textarea id="obs2" placeholder="Second observation"></textarea>
-        <textarea id="obs3" placeholder="Third observation"></textarea>
+        <textarea id="myObs" class="hidden" placeholder="I noticed … which might matter because …" maxlength="400"></textarea>
       </div>
+      <p class="soft small">What we've noticed</p>
+      <ul id="obsList"></ul>
+
+      <div id="connections" class="hidden">
+        <h3 style="margin-top:28px">Connections</h3>
+        <p class="soft small">What does this map say about different ways of working within the team, and between our team and others?</p>
+        <div class="readings">
+          <div class="reading"><b>Strengths only one person has</b><p class="small soft">Marked as a strength by one of us.</p><ul id="rSingle"></ul></div>
+          <div class="reading"><b>Development pairs</b><p class="small soft">Who wants to develop what, and who has marked it as a strength.</p><ul id="rPairs"></ul></div>
+        </div>
+      </div>
+
       <div class="actions">
         <button id="copyBtn">Copy summary</button>
         <button id="dlBtn">Download summary</button>
@@ -318,14 +330,14 @@
   let me = null;                       // person id
   let mine = blank();                  // my marks
   let all = {};                        // personId -> marks doc
-  let config = { revealed: false, sessionName: "" };
-  let notes = { obs1: "", obs2: "", obs3: "" };
+  let config = { revealed: false, sessionName: "", connections: false };
+  let observations = {};
   let archive = {};
   let db = null;
   const FACILITATOR = "tim";
   let isOwner = false;
   let saveTimer = null, saveChain = Promise.resolve(), dirty = 0;
-  const noteTimers = {};
+  let obsTimer = null;
   let sessionNameTimer = null;
 
   function ordinal(n) {
@@ -412,6 +424,9 @@
     isOwner = (me === FACILITATOR);
     mine = normalise(all[id]);
     renderNames(); renderMine(); renderMap();
+    const myObs = $("myObs");
+    myObs.value = (observations[me] && observations[me].text) || "";
+    myObs.classList.remove("hidden");
     $("mine").classList.remove("hidden");
     $("mine").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -531,8 +546,11 @@
     $("revealCtl").classList.toggle("hidden", !isOwner);
     $("revealBtn").textContent = show ? "Hide the map" : "Reveal the map to everyone";
     $("revealHint").textContent = show ? "" : "Shown to whoever picked Tim.";
+    $("connBtn").textContent = config.connections ? "Hide the connections" : "Show the connections";
     const nameInput = $("sessionName");
     if (document.activeElement !== nameInput) nameInput.value = currentSessionName();
+    const showConnections = show && config.connections;
+    $("connections").classList.toggle("hidden", !showConnections);
     if (!show) return;
 
     const t = $("mapTable"); t.innerHTML = "";
@@ -579,7 +597,10 @@
         const tot = document.createElement("td"); tot.className = "total"; tot.textContent = holders ? String(holders) : ""; tr.appendChild(tot);
         if (n >= 3) {
           if (holders === 0) { tr.classList.add("flag-empty"); readings.empty.push(item.name); }
-          if (holders === 1) { tr.classList.add("flag-single"); readings.single.push(item.name + " (" + holderNames(area, item)[0] + ")"); }
+          if (holders === 1) {
+            if (config.connections) tr.classList.add("flag-single");
+            readings.single.push(item.name + " (" + holderNames(area, item)[0] + ")");
+          }
           if (holders >= Math.max(3, Math.ceil(n * 0.6))) readings.shared.push(item.name + " (" + holders + ")");
           if (devs >= 3) readings.dev.push(item.name + " (" + devs + ")");
         }
@@ -590,8 +611,35 @@
 
     fillList("rShared", readings.shared, n);
     fillList("rEmpty", readings.empty, n);
-    fillList("rSingle", readings.single, n);
     fillList("rDev", readings.dev, n);
+    if (showConnections) {
+      fillList("rSingle", readings.single, n);
+      fillListAlways("rPairs", buildPairs());
+    }
+  }
+  function joinNames(names) {
+    if (names.length <= 1) return names.join("");
+    return names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  }
+  function lowerFirst(s) { return s.charAt(0).toLowerCase() + s.slice(1); }
+  function buildPairs() {
+    const lines = [];
+    PEOPLE.forEach(p => {
+      const d = all[p.id];
+      if (!d) return;
+      SKILL_IDS.forEach(id => {
+        if (!d.develop.includes(id)) return;
+        const item = ITEM_BY_ID[id];
+        const holders = PEOPLE.filter(q => all[q.id] && all[q.id].skills.includes(id)).map(q => q.name);
+        const name = lowerFirst(item.name);
+        if (holders.length) {
+          lines.push(p.name + " wants to develop " + name + "; it is a strength for " + joinNames(holders) + ".");
+        } else {
+          lines.push(p.name + " wants to develop " + name + "; nobody has marked it as a strength.");
+        }
+      });
+    });
+    return lines;
   }
   function holderNames(area, item) {
     return PEOPLE.filter(p => { const d = all[p.id]; return d && (area.kind === "skill" ? d.skills : d.attitudes).includes(item.id); }).map(p => p.name);
@@ -610,6 +658,26 @@
     if (n < 3) { const li = document.createElement("li"); li.className = "none"; li.textContent = "Shows once three people have mapped."; ul.appendChild(li); return; }
     if (!items.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = "Nothing here yet."; ul.appendChild(li); return; }
     items.forEach(x => { const li = document.createElement("li"); li.textContent = x; ul.appendChild(li); });
+  }
+  function fillListAlways(id, items) {
+    const ul = $(id); ul.innerHTML = "";
+    if (!items.length) { const li = document.createElement("li"); li.className = "none"; li.textContent = "Nothing here yet."; ul.appendChild(li); return; }
+    items.forEach(x => { const li = document.createElement("li"); li.textContent = x; ul.appendChild(li); });
+  }
+  function computeSingleRows() {
+    const n = PEOPLE.filter(p => hasMapped(all[p.id])).length;
+    const rows = [];
+    if (n < 3) return rows;
+    AREAS.forEach(area => {
+      area.items.forEach(item => {
+        const holders = holderNames(area, item);
+        if (holders.length === 1) rows.push([item.name, holders[0]]);
+      });
+    });
+    return rows;
+  }
+  function computeSingles() {
+    return computeSingleRows().map(r => r[0] + " (" + r[1] + ")");
   }
 
   // ---------- summary ----------
@@ -631,8 +699,21 @@
       });
       lines.push("");
     });
-    lines.push("Three things the team wants to act on");
-    ["obs1", "obs2", "obs3"].forEach((k, i) => lines.push("  " + (i + 1) + ". " + (notes[k] || "")));
+    lines.push("Observations");
+    PEOPLE.forEach(p => {
+      const o = observations[p.id];
+      lines.push(o && o.text ? "  " + p.name + ": " + o.text : "  " + p.name + ": none yet");
+    });
+    lines.push("");
+    lines.push("Connections");
+    const singles = computeSingles();
+    lines.push("Strengths only one person has");
+    if (singles.length) singles.forEach(s => lines.push("  " + s));
+    else lines.push("  Nothing here yet.");
+    lines.push("Development pairs");
+    const pairs = buildPairs();
+    if (pairs.length) pairs.forEach(s => lines.push("  " + s));
+    else lines.push("  Nothing here yet.");
     return lines.join("\n");
   }
   $("copyBtn").addEventListener("click", async () => {
@@ -736,8 +817,17 @@
     rows.push([]);
     rows.push(["Generated", new Date().toLocaleString()]);
     rows.push([]);
-    rows.push(["Three things the team wants to act on"]);
-    ["obs1", "obs2", "obs3"].forEach((k, i) => rows.push([String(i + 1), notes[k] || ""]));
+    rows.push(["Observations"]);
+    PEOPLE.forEach(p => {
+      const o = observations[p.id];
+      rows.push([p.name, (o && o.text) || ""]);
+    });
+    rows.push([]);
+    rows.push(["Strengths only one person has"]);
+    computeSingleRows().forEach(r => rows.push(r));
+    rows.push([]);
+    rows.push(["Development pairs"]);
+    buildPairs().forEach(s => rows.push([s]));
 
     const sheetRowsXml = rows.map((row, ri) => {
       const rowIndex = ri + 1;
@@ -793,19 +883,32 @@
   $("xlsBtn").addEventListener("click", downloadExcel);
 
   // ---------- observations ----------
-  ["obs1", "obs2", "obs3"].forEach(k => {
-    const ta = $(k);
-    ta.addEventListener("input", () => {
-      notes[k] = ta.value;
-      if (!db) return;
-      clearTimeout(noteTimers[k]);
-      noteTimers[k] = setTimeout(() => { db.ref("map/notes/" + k).set({ text: ta.value, updatedAt: new Date().toISOString() }).catch(() => {}); }, 800);
-    });
+  $("myObs").addEventListener("input", (e) => {
+    if (!me) return;
+    const text = e.target.value;
+    observations = { ...observations, [me]: { text: text, updatedAt: new Date().toISOString() } };
+    if (!db) return;
+    clearTimeout(obsTimer);
+    obsTimer = setTimeout(() => {
+      db.ref("map/observations/" + me).set({ text: text, updatedAt: new Date().toISOString() }).catch(() => {});
+    }, 800);
   });
-  function applyNote(k, text) {
-    notes[k] = text || "";
-    const ta = $(k);
-    if (document.activeElement !== ta && ta.value !== notes[k]) ta.value = notes[k];
+  function renderObservations() {
+    const myObs = $("myObs");
+    if (me && document.activeElement !== myObs) {
+      const text = (observations[me] && observations[me].text) || "";
+      if (myObs.value !== text) myObs.value = text;
+    }
+    const list = $("obsList"); list.innerHTML = "";
+    PEOPLE.forEach(p => {
+      const o = observations[p.id];
+      if (!o || !o.text) return;
+      const li = document.createElement("li");
+      const b = document.createElement("b"); b.textContent = p.name;
+      li.appendChild(b);
+      li.appendChild(document.createTextNode(": " + o.text));
+      list.appendChild(li);
+    });
   }
 
   // ---------- session name ----------
@@ -842,6 +945,11 @@
     const next = !config.revealed;
     db.ref("map/config").update({ revealed: next, updatedAt: new Date().toISOString() }).catch(() => {});
   });
+  $("connBtn").addEventListener("click", () => {
+    if (!db) return;
+    const next = !config.connections;
+    db.ref("map/config").update({ connections: next, updatedAt: new Date().toISOString() }).catch(() => {});
+  });
   $("snapBtn").addEventListener("click", () => {
     if (!db) return;
     saveSnapshot().then(name => {
@@ -852,7 +960,7 @@
   });
   $("resetBtn").addEventListener("click", () => {
     if (!db) return;
-    const ok = window.confirm("This saves a snapshot and an Excel copy of the current map, then clears everyone's marks, the revealed map and the three observations, for all eight people. Reset now?");
+    const ok = window.confirm("This saves a snapshot and an Excel copy of the current map, then clears everyone's marks, the revealed map and everyone's observations, for all eight people. Reset now?");
     if (!ok) return;
     saveSnapshot().then(() => {
       downloadExcel();
@@ -868,8 +976,9 @@
   loadLocal();
   isOwner = (me === FACILITATOR);
   renderNames();
-  if (me) { mine = blank(); $("mine").classList.remove("hidden"); renderMine(); }
+  if (me) { mine = blank(); $("mine").classList.remove("hidden"); $("myObs").classList.remove("hidden"); renderMine(); }
   renderMap();
+  renderObservations();
   renderSnapList();
 
   try {
@@ -897,12 +1006,13 @@
 
     db.ref("map/config").on("value", snap => {
       const v = snap.val();
-      config = { revealed: !!(v && v.revealed), sessionName: (v && v.sessionName) || "" };
+      config = { revealed: !!(v && v.revealed), sessionName: (v && v.sessionName) || "", connections: !!(v && v.connections) };
       renderMap();
     });
 
-    ["obs1", "obs2", "obs3"].forEach(k => {
-      db.ref("map/notes/" + k).on("value", snap => { const v = snap.val(); applyNote(k, v ? v.text : ""); });
+    db.ref("map/observations").on("value", snap => {
+      observations = snap.val() || {};
+      renderObservations();
     });
 
     db.ref("archive").on("value", snap => {

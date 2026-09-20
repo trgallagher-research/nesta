@@ -34,7 +34,7 @@ https://trgallagher-research.github.io/nesta/
 
 ## Running a session
 
-Open the page, pick Tim, place a few marks. The session name defaults to today's date and time in the Netherlands, in words; edit it in the box above the reveal button if you'd rather give the session a different name — everyone sees the same name. Open it in a second browser (or on your phone), pick another name, and check the first browser's map updates once you press "Reveal the map to everyone". At the end, "Copy summary", "Download summary" and "Download as Excel" export the map, the session name and the three observations. "Save a snapshot" keeps a copy of the map under the current session name without clearing anything, useful partway through a discussion. Then clear your test marks.
+Open the page, pick Tim, place a few marks. The session name defaults to today's date and time in the Netherlands, in words; edit it in the box above the reveal button if you'd rather give the session a different name — everyone sees the same name. Open it in a second browser (or on your phone), pick another name, and check the first browser's map updates once you press "Reveal the map to everyone". After the reveal, each person types one observation into their own box, with a sentence stem to prompt them; everyone's observations appear in a shared list as they're typed. When you're ready, press "Show the connections" to add two more readings — strengths only one person has, and development pairs — to the discussion; press it again to hide them. At the end, "Copy summary", "Download summary" and "Download as Excel" export the map, the session name, everyone's observations and the connections. "Save a snapshot" keeps a copy of the map under the current session name without clearing anything, useful partway through a discussion. Then clear your test marks.
 
 The session itself runs to a tight schedule, in outline:
 
@@ -42,12 +42,12 @@ The session itself runs to a tight schedule, in outline:
 2. 5–10 min: orient to the framework
 3. 10–25 min: silent mapping (the map stays hidden)
 4. 25–35 min: each person's superpower and one thing to develop
-5. 35–52 min: facilitator reveals the map, then discussion
-6. 52–60 min: three observations typed into the page, summary exported
+5. 35–52 min: facilitator reveals the map, then discussion; each person writes and shares one observation; the facilitator switches on the connections step
+6. 52–60 min: summary exported
 
 ## Clearing the database between sessions
 
-Any of these removes everything under `map/` in the database: all marks, the revealed flag, the session name and the three observations. Download or copy the summary first if you want to keep a record.
+Any of these removes everything under `map/` in the database: all marks, the revealed flag, the session name and everyone's observations (under `map/observations`). Download or copy the summary first if you want to keep a record.
 
 1. In the page itself: pick Tim, reveal the map, press "Reset for a new session", and confirm. Resetting saves a snapshot of the current map under `archive/` and downloads an Excel copy first — if the snapshot can't be saved, nothing is cleared — then everyone's marks and the observations are cleared for all open browsers. Snapshots saved this way are not removed by the in-page reset; they live under `archive/` in the Firebase console until you delete them, for example with `npm run clear`.
 2. From a checkout, after `npm install`, run `npm run clear` (this also empties `archive/`).
@@ -62,6 +62,8 @@ Any of these removes everything under `map/` in the database: all marks, the rev
 Run `npm install`, then `npm test` to run the Playwright acceptance tests. These run against the real database and clear `map/` before and after the run, so do not run them during a live session.
 
 You'll need Node 18 or later. The first `npm install` may prompt Playwright to download a browser — if so, run `npx playwright install chromium`.
+
+On a slow connection or behind a TLS-inspecting proxy run with EXPECT_TIMEOUT=30000 TEST_TIMEOUT=180000 IGNORE_HTTPS_ERRORS=1.
 
 ## Deleting the Firebase project afterwards
 
@@ -82,5 +84,5 @@ Alternatively, keep the project and tighten the rules instead: in Build, then Re
 ## Notes
 
 - The reveal button shows for whoever has picked Tim. There's no login; the eight names are trust-based.
-- Data lives under `map/` in the database: `marks/<person>`, `config`, `notes`. You can inspect or delete it from the Firebase console.
-- The "Download summary" button saves a plain-text version of the grid and the three observations.
+- Data lives under `map/` in the database: `marks/<person>`, `config`, `observations/<person>`. You can inspect or delete it from the Firebase console.
+- The "Download summary" button saves a plain-text version of the grid, everyone's observations and the connections.

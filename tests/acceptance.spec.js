@@ -1,6 +1,6 @@
-// Acceptance tests for BRIEF.md criteria 2-8, run against the real Firebase
-// Realtime Database (no mocking). Tests share one database, so they run
-// serially in a single worker and each test clears the database first.
+// Acceptance tests for BRIEF.md criteria 2-8 and 11-16, run against the real
+// Firebase Realtime Database (no mocking). Tests share one database, so they
+// run serially in a single worker and each test clears the database first.
 const fs = require('fs');
 const { test, expect } = require('@playwright/test');
 const { clearMap, readDatabaseUrl } = require('./db.js');
@@ -223,49 +223,47 @@ test.describe('nesta competency map acceptance', () => {
     await ctxB.close();
   });
 
-  test('criterion 6: observations typed in one browser appear in another without overwriting text being typed there', async ({ browser }) => {
+  test('criterion 6: an observation typed by one person appears in every other browser\'s list without overwriting text being typed there', async ({ browser }) => {
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
     const pageB = await ctxB.newPage();
 
     await openAs(pageA, 'Tim');
-    await openAs(pageB, 'Agnese');
+    await openAs(pageB, 'Connie');
 
     await pageA.locator('#revealBtn').click();
     await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
     await expect(pageB.locator('#mapBody')).toBeVisible({ timeout: 3000 });
 
-    await pageA.locator('#obs1').click();
-    await pageA.locator('#obs1').pressSequentially('Alpha typed in A', { delay: 15 });
+    await pageA.locator('#myObs').click();
+    await pageA.locator('#myObs').pressSequentially('Tim is typing a note', { delay: 15 });
 
-    await pageB.locator('#obs2').click();
-    await pageB.locator('#obs2').pressSequentially('Beta typed in B', { delay: 15 });
-    await pageB.locator('#obs1').click();
-    await pageB.locator('#obs1').pressSequentially('Beta wrote obs1', { delay: 15 });
+    await pageB.locator('#myObs').click();
+    await pageB.locator('#myObs').pressSequentially('Connie noticed something', { delay: 15 });
 
-    // A's obs2 (unfocused there) picks up B's text within 3 seconds.
-    await expect(pageA.locator('#obs2')).toHaveValue('Beta typed in B', { timeout: 3000 });
-    // A's obs1, still focused in A, is not overwritten by B's remote edit.
-    await expect(pageA.locator('#obs1')).toHaveValue('Alpha typed in A');
+    // A's list shows Connie's text within 3 seconds, while A's own textarea
+    // (still focused in A) keeps A's in-progress text.
+    await expect(pageA.locator('#obsList')).toContainText('Connie noticed something', { timeout: 3000 });
+    await expect(pageA.locator('#myObs')).toHaveValue('Tim is typing a note');
 
-    // A moves focus away from obs1 so it can now receive remote updates.
-    await pageA.locator('#obs3').focus();
+    // A moves focus away so its textarea could be overwritten by a remote
+    // update to Tim's own entry; it isn't, because it's still A's own text.
+    await pageA.locator('body').click({ position: { x: 5, y: 5 } });
 
     await expect(async () => {
-      const a1 = await pageA.locator('#obs1').inputValue();
-      const b1 = await pageB.locator('#obs1').inputValue();
-      expect(a1).toBe(b1);
-      const a2 = await pageA.locator('#obs2').inputValue();
-      const b2 = await pageB.locator('#obs2').inputValue();
-      expect(a2).toBe(b2);
+      const listA = await pageA.locator('#obsList').innerText();
+      const listB = await pageB.locator('#obsList').innerText();
+      expect(listA).toBe(listB);
+      expect(listA).toContain('Tim is typing a note');
+      expect(listA).toContain('Connie noticed something');
     }).toPass({ timeout: 3000 });
 
     await ctxA.close();
     await ctxB.close();
   });
 
-  test('criterion 7: copy summary and download summary both produce the text summary with every row and the three observations', async ({ browser }) => {
+  test('criterion 7: copy summary and download summary both produce the text summary with every row, every observation and the connections', async ({ browser }) => {
     const ctxA = await browser.newContext();
     const ctxB = await browser.newContext();
     const pageA = await ctxA.newPage();
@@ -283,21 +281,22 @@ test.describe('nesta competency map acceptance', () => {
     await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
 
     const obsTexts = {
-      obs1: 'Observation one: collective strength in facilitation',
-      obs2: 'Observation two: nobody owns financing change alone',
-      obs3: 'Observation three: shared interest in prototyping',
+      tim: 'Tim noticed a collective strength in facilitation',
+      connie: 'Connie noticed nobody owns financing change alone',
     };
-    await pageA.locator('#obs1').fill(obsTexts.obs1);
-    await pageA.locator('#obs2').fill(obsTexts.obs2);
-    await pageA.locator('#obs3').fill(obsTexts.obs3);
+    await pageA.locator('#myObs').fill(obsTexts.tim);
+    await pageB.locator('#myObs').fill(obsTexts.connie);
+    await expect(pageA.locator('#obsList')).toContainText(obsTexts.connie, { timeout: 3000 });
 
     function checkSummary(text) {
       for (const item of ALL_ITEMS) {
         expect(text).toContain(item);
       }
-      expect(text).toContain(obsTexts.obs1);
-      expect(text).toContain(obsTexts.obs2);
-      expect(text).toContain(obsTexts.obs3);
+      expect(text).toContain(obsTexts.tim);
+      expect(text).toContain(obsTexts.connie);
+      expect(text).toContain('Connections');
+      expect(text).toContain('Strengths only one person has');
+      expect(text).toContain('Development pairs');
     }
 
     await pageA.locator('#copyBtn').click();
@@ -521,5 +520,75 @@ test.describe('nesta competency map acceptance', () => {
     }).toPass({ timeout: 3000 });
 
     await ctx.close();
+  });
+
+  test('criterion 15: at reveal the readings name nobody, until the connections step', async ({ browser }) => {
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    const pageB = await ctxB.newPage();
+
+    await openAs(pageA, 'Tim');
+    await openAs(pageB, 'Connie');
+
+    await applyMarks(pageA, TIM_SET);
+    await waitSaved(pageA);
+    await applyMarks(pageB, CONNIE_SET);
+    await waitSaved(pageB);
+
+    await pageA.locator('#revealBtn').click();
+    await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await expect(pageA.locator('.reading b', { hasText: exact('Collective strengths') })).toBeVisible();
+    await expect(pageA.locator('.reading b', { hasText: exact('Gaps on the map') })).toBeVisible();
+    await expect(pageA.locator('.reading b', { hasText: exact('Skills several of us want to develop') })).toBeVisible();
+    await expect(pageA.locator('.reading b', { hasText: exact('Strengths only one person has') })).toHaveCount(0);
+    await expect(pageA.locator('tr.flag-single')).toHaveCount(0);
+
+    await ctxA.close();
+    await ctxB.close();
+  });
+
+  test('criterion 16: show the connections is Tim-only, syncs within 3 seconds, and lists strengths only one person has and development pairs', async ({ browser }) => {
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    const ctxC = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    const pageB = await ctxB.newPage();
+    const pageC = await ctxC.newPage();
+
+    await openAs(pageA, 'Tim');
+    await openAs(pageB, 'Connie');
+    await openAs(pageC, 'Alex');
+
+    await applyMarks(pageA, TIM_SET);
+    await waitSaved(pageA);
+    await applyMarks(pageB, CONNIE_SET);
+    await waitSaved(pageB);
+    await applyMarks(pageC, ALEX_SET);
+    await waitSaved(pageC);
+
+    await pageA.locator('#revealBtn').click();
+    await expect(pageA.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+    await expect(pageB.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await expect(pageA.locator('#connBtn')).toBeVisible();
+    await expect(pageB.locator('#connBtn')).toBeHidden();
+
+    await pageA.locator('#connBtn').click();
+    await expect(pageB.locator('#connections')).toBeVisible({ timeout: 3000 });
+
+    // Connie develops "Demonstrating value" (CONNIE_SET), which Alex holds
+    // as a strength (ALEX_SET).
+    await expect(pageB.locator('#rPairs')).toContainText(
+      'Connie wants to develop demonstrating value; it is a strength for Alex.'
+    );
+
+    await pageA.locator('#connBtn').click();
+    await expect(pageB.locator('#connections')).toBeHidden({ timeout: 3000 });
+
+    await ctxA.close();
+    await ctxB.close();
+    await ctxC.close();
   });
 });

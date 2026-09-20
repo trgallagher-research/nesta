@@ -15,14 +15,15 @@ Run of the session:
 2. 5–10: orient to the framework
 3. 10–25: silent mapping; the map is hidden from everyone
 4. 25–35: round: each person's superpower and one thing to develop
-5. 35–52: facilitator reveals the map; discussion using four prompts (what we hold collectively, where nobody is, single points of failure, shared development interest)
-6. 52–60: three observations typed into the page; summary exported
+5. 35–52: facilitator reveals the map; discussion using four prompts (collective strengths, gaps on the map, single points of failure, shared development interest); each person writes one observation, then shares it; the facilitator switches on a connections step
+6. 52–60: summary exported
 
 ## Rules the page enforces
 
 - Exactly these marks per person: 5 skills as strengths, 3 attitudes as strengths, 1 superpower (must be one of the 5 skills), 2 skills to develop (cannot also be strengths).
 - The team map is hidden until the facilitator reveals it. The reveal control is shown to whoever has picked "Tim".
-- Three shared observation fields, editable by anyone.
+- One observation per person, written after the reveal with a sentence stem, shared with everyone.
+- A connections step, switched on by Tim, that shows strengths only one person has and development pairs; hidden at reveal so the first readings name nobody.
 - Copy and download a plain-text summary.
 - Download the map as an Excel workbook (built in plain JavaScript, no library).
 - A reset control, shown only to whoever picked Tim, that downloads the Excel copy first, then clears everyone's marks, the revealed flag and the observations after a confirmation.
@@ -34,8 +35,8 @@ Run of the session:
 ```
 map/
   marks/<personId>   { skills: [], attitudes: [], star: id|null, develop: [], updatedAt }
-  config             { revealed, sessionName, updatedAt }
-  notes/obs1..obs3   { text, updatedAt }
+  config             { revealed, sessionName, connections, updatedAt }
+  observations/<personId> { text, updatedAt }
 archive/<timestamp>  { name, savedAt, data }
 ```
 
@@ -55,15 +56,17 @@ Person ids: tim, connie, jenny, alex, agnes, stas, lavanya, jen.
 3. Marks placed before a page reload survive the reload for the same name.
 4. The count limits are enforced: a sixth skill, fourth attitude, second superpower, or third develop cannot be placed; superpower cannot be placed on a non-strength; develop cannot be placed on a strength.
 5. Reveal toggles the map for all open browsers. Only the browser that picked Tim sees the reveal control.
-6. Observations typed in one browser appear in another without overwriting text being typed there.
-7. "Copy summary" and "Download summary" both produce the text summary containing every row and the three observations.
+6. An observation typed by one person appears in every other browser's list without overwriting text being typed there.
+7. "Copy summary" and "Download summary" both produce the text summary containing every row, every observation and the connections.
 8. Layout works at 380px wide (the marks buttons wrap; the map scrolls sideways inside its container, the page does not).
 9. Deployed on GitHub Pages and reachable at the public URL.
 10. README explains setup in the words of SETUP.md, plus how to clear the database between runs.
 11. Reset, available only to Tim, asks for confirmation, downloads the Excel file, and empties `map/` so every open browser shows a blank map within 3 seconds.
-12. "Download as Excel" produces a valid .xlsx containing every row and the three observations.
+12. "Download as Excel" produces a valid .xlsx containing every row, every observation and the connections.
 13. The session name defaults to the Netherlands date and time in words, can be edited by Tim, appears in every browser, and heads the text and Excel summaries.
 14. Save a snapshot writes archive/<timestamp> with the session name and the current map; reset writes one before clearing.
+15. At reveal the readings are collective strengths, gaps on the map and skills several of us want to develop; no reading or row flag names a single person until the connections step.
+16. Show the connections is visible only to Tim, toggles for every browser within 3 seconds, and lists strengths only one person has and development pairs in the form "Alex wants to develop brokering; it is a strength for Connie and Stas."
 
 ## Out of scope
 
