@@ -591,4 +591,115 @@ test.describe('nesta competency map acceptance', () => {
     await ctxB.close();
     await ctxC.close();
   });
+
+  test('criterion 17: the cluster chart shows one row per competency grouped by area, sorted by count, with no name anywhere in it', async ({ browser }) => {
+    const ctxA = await browser.newContext();
+    const ctxB = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    const pageB = await ctxB.newPage();
+
+    await openAs(pageA, 'Tim');
+    await openAs(pageB, 'Connie');
+
+    await applyMarks(pageA, TIM_SET);
+    await waitSaved(pageA);
+    await applyMarks(pageB, CONNIE_SET);
+    await waitSaved(pageB);
+
+    await pageA.locator('#revealBtn').click();
+    await expect(pageB.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await expect(pageB.locator('#clusters .cl-area')).toHaveCount(4);
+
+    // TIM_SET and CONNIE_SET share no skill as a strength, so within an area
+    // every held row has exactly one holder; a row with a holder still sorts
+    // ahead of an unheld row (0 holders) in the same area. "Learning" holds
+    // Tim's "Data literacy and evidence" and Connie's "Future acumen", both
+    // ahead of the unheld "Prototyping and iterating", "Systems thinking" and
+    // "Tech literacy" rows.
+    const learningRow = pageB.locator('#clusters .cl-area').nth(1);
+    const rowLabels = await learningRow.locator('.cl-row .cl-label').allTextContents();
+    const heldIndex = Math.max(rowLabels.indexOf('Future acumen'), rowLabels.indexOf('Data literacy and evidence'));
+    const unheldIndex = rowLabels.indexOf('Prototyping and iterating');
+    expect(heldIndex).toBeLessThan(unheldIndex);
+
+    // The row for "Financing change" (Tim's strength, 1 holder) shows exactly
+    // 1 filled/star glyph, matching the table's holders cell.
+    const financingClRow = pageB.locator('#clusters .cl-row').filter({ has: pageB.locator('.cl-label', { hasText: exact('Financing change') }) });
+    const filledCount = await financingClRow.locator('.cl-slot .glyph.fill, .cl-slot .glyph.star').count();
+    expect(filledCount).toBe(1);
+    const mapRow = pageB.locator('#mapTable tr').filter({ has: pageB.locator('td.name', { hasText: exact('Financing change') }) });
+    const mapHolders = await mapRow.locator('.total').textContent();
+    expect(String(filledCount)).toBe(mapHolders.trim());
+
+    // No name anywhere in the cluster chart.
+    const clustersHtml = await pageB.locator('#clusters').innerHTML();
+    const names = ['Tim', 'Connie', 'Jenny', 'Alex', 'Agnese', 'Stas', 'Lavanya', 'Jenn'];
+    for (const name of names) {
+      expect(clustersHtml).not.toContain(name);
+    }
+
+    await ctxA.close();
+    await ctxB.close();
+  });
+
+  test('criterion 18: the sort toggle reorders the table rows within each area and back, and survives a reload', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+
+    await openAs(page, 'Tim');
+    await applyMarks(page, TIM_SET);
+    await waitSaved(page);
+
+    // Bring in a second mark set so "Leading change" has rows with differing
+    // holder counts to sort by.
+    const ctx2 = await browser.newContext();
+    const page2 = await ctx2.newPage();
+    await openAs(page2, 'Connie');
+    await applyMarks(page2, CONNIE_SET);
+    await waitSaved(page2);
+
+    await page.locator('#revealBtn').click();
+    await expect(page.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+
+    await page.locator('#sortRows').check();
+
+    function areaRows(pg, areaName) {
+      return pg.locator('#mapTable tr').filter({ hasNotText: '' }).evaluateAll((rows, areaName) => {
+        const out = [];
+        let inArea = false;
+        for (const r of rows) {
+          if (r.classList.contains('area-head')) {
+            inArea = r.textContent.trim() === areaName;
+            continue;
+          }
+          if (inArea) {
+            const nameCell = r.querySelector('td.name');
+            const total = r.querySelector('td.total');
+            if (nameCell) out.push({ name: nameCell.textContent.replace(/\s*\(.*\)$/, '').trim(), holders: parseInt(total.textContent || '0', 10) || 0 });
+          }
+        }
+        return out;
+      }, areaName);
+    }
+
+    const sortedLeading = await areaRows(page, 'Leading change');
+    expect(sortedLeading[0].holders).toBeGreaterThanOrEqual(sortedLeading[1].holders);
+
+    await page.reload();
+    if (!(await page.locator('#mine').isVisible())) {
+      await page.locator('#names button').filter({ hasText: exact('Tim') }).click();
+    }
+    // The map stays revealed across the reload (it's a shared config flag
+    // that was never toggled off), so it should already be visible.
+    await expect(page.locator('#mapBody')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#sortRows')).toBeChecked();
+
+    await page.locator('#sortRows').uncheck();
+    const unsortedTogether = await areaRows(page, 'Working together');
+    expect(unsortedTogether[0].name).toBe('Citizen and stakeholder engagement');
+
+    await ctx.close();
+    await ctx2.close();
+  });
 });

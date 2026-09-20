@@ -161,6 +161,19 @@
   .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 10px 0 0; font-size: 0.92rem; color: var(--ink-soft); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
 
+  /* cluster chart */
+  #sortWrap { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 14px; }
+  .cl-head { font-weight: 700; margin-top: 14px; color: var(--area); border-bottom: 2px solid var(--area); padding-bottom: 4px; }
+  .cl-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .cl-track { display: grid; grid-template-columns: repeat(8, 16px); gap: 4px; }
+  .cl-slot { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
+  .cl-slot .glyph.hollow { border-style: dashed; border-color: var(--develop); }
+  .cl-count { color: var(--ink-soft); min-width: 1.5em; text-align: right; }
+  @media (max-width: 640px) {
+    .cl-row { grid-template-columns: auto auto; }
+    .cl-row .cl-label { grid-column: 1 / -1; }
+  }
+
   /* readings */
   .readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
   .reading { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
@@ -233,6 +246,11 @@
     </div>
     <div id="mapHidden" class="notice">The map is hidden until the facilitator reveals it, so everyone maps without seeing each other's columns first. When it opens, look for where we cluster and where the gaps on the map are, not for who has most. Nobody has all of these.</div>
     <div id="mapBody" class="hidden">
+      <div id="clusters">
+        <h3>Where we cluster</h3>
+        <p class="soft small">One dot per person who marked it as a strength; a dashed circle for each person who wants to develop it. Nobody is named here.</p>
+      </div>
+      <label class="soft small" id="sortWrap"><input type="checkbox" id="sortRows"> Sort rows by how many of us marked them</label>
       <div class="mapwrap"><table class="map" id="mapTable"></table></div>
       <div class="legend">
         <span><i class="glyph fill" style="color:var(--ink)"></i> strength</span>
@@ -341,6 +359,15 @@
   let saveTimer = null, saveChain = Promise.resolve(), dirty = 0;
   let obsTimer = null;
   let sessionNameTimer = null;
+  let sortRows = false;
+
+  // ---------- local storage: sort preference (per-viewer convenience only) ----------
+  function loadSortPref() {
+    try { sortRows = localStorage.getItem("cm.sortRows") === "1"; } catch (e) {}
+  }
+  function saveSortPref() {
+    try { localStorage.setItem("cm.sortRows", sortRows ? "1" : "0"); } catch (e) {}
+  }
 
   function ordinal(n) {
     const rem100 = n % 100;
@@ -537,6 +564,86 @@
     }, 600);
   }
 
+  // ---------- ordering shared by the cluster chart and the sortable table ----------
+  function areaStats(area) {
+    return area.items.map(item => {
+      let holders = 0, devs = 0, star = 0;
+      PEOPLE.forEach(p => {
+        const d = all[p.id];
+        if (!d) return;
+        const isStrength = area.kind === "skill" ? d.skills.includes(item.id) : d.attitudes.includes(item.id);
+        if (isStrength) {
+          holders++;
+          if (d.star === item.id) star++;
+        } else if (area.kind === "skill" && d.develop.includes(item.id)) {
+          devs++;
+        }
+      });
+      return { item, holders, devs, star };
+    });
+  }
+  function orderedItems(area) {
+    const stats = areaStats(area);
+    const order = {};
+    area.items.forEach((it, i) => { order[it.id] = i; });
+    stats.sort((a, b) => {
+      if (b.holders !== a.holders) return b.holders - a.holders;
+      if (b.devs !== a.devs) return b.devs - a.devs;
+      return order[a.item.id] - order[b.item.id];
+    });
+    return stats.map(s => s.item);
+  }
+
+  // ---------- rendering: cluster chart ----------
+  function renderClusters() {
+    const box = $("clusters");
+    box.innerHTML = "";
+    const heading = document.createElement("h3"); heading.textContent = "Where we cluster"; box.appendChild(heading);
+    const intro = document.createElement("p"); intro.className = "soft small";
+    intro.textContent = "One dot per person who marked it as a strength; a dashed circle for each person who wants to develop it. Nobody is named here.";
+    box.appendChild(intro);
+
+    AREAS.forEach(area => {
+      const statsById = {};
+      areaStats(area).forEach(s => { statsById[s.item.id] = s; });
+      const items = orderedItems(area);
+
+      const areaBox = document.createElement("div"); areaBox.className = "cl-area"; areaBox.style.setProperty("--area", area.color);
+      const head = document.createElement("div"); head.className = "cl-head"; head.textContent = area.name;
+      areaBox.appendChild(head);
+
+      items.forEach(item => {
+        const s = statsById[item.id];
+        const row = document.createElement("div"); row.className = "cl-row";
+        const label = document.createElement("span"); label.className = "cl-label"; label.textContent = item.name;
+        row.appendChild(label);
+
+        const track = document.createElement("span"); track.className = "cl-track";
+        for (let i = 0; i < 8; i++) {
+          const slot = document.createElement("span"); slot.className = "cl-slot";
+          if (i < s.holders) {
+            const g = document.createElement("i");
+            g.className = "glyph " + (i < s.star ? "star" : "fill");
+            g.style.color = area.color;
+            slot.appendChild(g);
+          } else if (i < s.holders + s.devs) {
+            const g = document.createElement("i"); g.className = "glyph hollow";
+            slot.appendChild(g);
+          }
+          track.appendChild(slot);
+        }
+        row.appendChild(track);
+
+        const count = document.createElement("span"); count.className = "cl-count";
+        count.textContent = s.holders ? String(s.holders) : "";
+        row.appendChild(count);
+
+        areaBox.appendChild(row);
+      });
+      box.appendChild(areaBox);
+    });
+  }
+
   // ---------- rendering: map ----------
   function renderMap() {
     const mapped = PEOPLE.filter(p => hasMapped(all[p.id]));
@@ -555,6 +662,8 @@
     $("connections").classList.toggle("hidden", !showConnections);
     if (!show) return;
 
+    renderClusters();
+
     const t = $("mapTable"); t.innerHTML = "";
     const thead = document.createElement("thead");
     const hr = document.createElement("tr");
@@ -572,7 +681,8 @@
       const ah = document.createElement("tr"); ah.className = "area-head"; ah.style.setProperty("--area", area.color);
       const td = document.createElement("td"); td.colSpan = PEOPLE.length + 2; td.textContent = area.name; ah.appendChild(td);
       tbody.appendChild(ah);
-      area.items.forEach(item => {
+      const items = sortRows ? orderedItems(area) : area.items;
+      items.forEach(item => {
         const tr = document.createElement("tr");
         const nameTd = document.createElement("td"); nameTd.className = "name"; nameTd.textContent = item.name; tr.appendChild(nameTd);
         let holders = 0, devs = 0;
@@ -974,8 +1084,17 @@
     });
   });
 
+  // ---------- sort toggle ----------
+  $("sortRows").addEventListener("change", (e) => {
+    sortRows = e.target.checked;
+    saveSortPref();
+    renderMap();
+  });
+
   // ---------- boot ----------
   loadLocal();
+  loadSortPref();
+  $("sortRows").checked = sortRows;
   isOwner = (me === FACILITATOR);
   renderNames();
   if (me) { mine = blank(); $("mine").classList.remove("hidden"); $("myObs").classList.remove("hidden"); renderMine(); }
