@@ -49,6 +49,10 @@ The session itself runs to a tight schedule, in outline:
 5. 35–52 min: facilitator reveals the map, then discussion; each person writes and shares one observation; the facilitator switches on the connections step
 6. 52–60 min: summary exported
 
+## Introducing the framework
+
+The page at https://trgallagher-research.github.io/nesta/framework.html is a five-step orientation for screen sharing (arrow keys to step) that walks a team through Nesta's competency framework before mapping, built from Nesta's guide, [Skills, attitudes and behaviours that fuel public innovation](https://www.nesta.org.uk/toolkit/skills-attitudes-and-behaviours-that-fuel-public-innovation/), under CC BY-NC-SA 4.0.
+
 ## Clearing the database between sessions
 
 Any of these removes everything under `map/` in the database: all marks, the revealed flag, the session name and everyone's observations (under `map/observations`). Download or copy the summary first if you want to keep a record.
